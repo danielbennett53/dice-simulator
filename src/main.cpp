@@ -4,6 +4,10 @@
 #include <iostream>
 #include <cmath>
 #include "shader.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -42,16 +46,29 @@ int main(int argc, char *argv[])
                      PROJECT_DIR "/src/shaders/fragment.glsl");
 
     float vertices[] = {
-            -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,
-            0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
-            -0.5f, 0.5f, 0.0f,  1.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, 0.0f,   0.0f, 1.0f, 1.0f
+            -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,
+            -0.5f, -0.5f, 0.5f,   1.0f, 0.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+            -0.5f, 0.5f, 0.5f,    0.0f, 1.0f, 0.0f,
+            0.5f, -0.5f, -0.5f,   0.0f, 0.0f, 1.0f,
+            0.5f, -0.5f, 0.5f,    0.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, -0.5f,    1.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, 0.5f,     1.0f, 0.0f, 1.0f
     };
 
     unsigned int indices[] = {  // note that we start from 0!
-            0, 1, 2,  // first Triangle
-            2, 3, 4   // second Triangle
+            0, 1, 2,
+            1, 2, 3,
+            0, 2, 4,
+            2, 4, 6,
+            0, 1, 4,
+            1, 4, 5,
+            1, 3, 5,
+            3, 5, 7,
+            2, 3, 6,
+            3, 6, 7,
+            4, 5, 6,
+            5, 6, 7
     };
     unsigned int VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
@@ -83,14 +100,28 @@ int main(int argc, char *argv[])
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    glm::mat4 trans = glm::mat4(1.0f);
+    float angle = 0.0;
+    glm::vec3 vec;
+    glm::quat myQuat;
+
+
     while(!glfwWindowShouldClose(window))
     {
         processInput(window);
         glClearColor(0.2f, 0.3f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+        auto time = (float)glfwGetTime();
+        angle = time;
+        vec = glm::vec3(0.0f, 1.0f, 0.0f);
+        myQuat = glm::angleAxis(angle, vec);
+        trans = glm::mat4_cast(glm::normalize(myQuat));
+        unsigned int transformLoc = glGetUniformLocation(ourShader.ID, "transform");
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
         ourShader.use();
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
 
         glfwSwapBuffers(window);
         glfwPollEvents();
