@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -Wall -Wextra")
 set(OpenGL_GL_PREFERENCE GLVND)
 
+add_compile_definitions(PROJECT_DIR="${PROJECT_SOURCE_DIR}")
+
 find_package(OpenGL REQUIRED)
 find_package(glfw3 3.2 REQUIRED)
 
