@@ -11,10 +11,14 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
 // Settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+static auto cam_pos = glm::vec3(0.0f, 0.0f, 1.0f);
+static float cam_radius = 3;
 
 int main(int argc, char *argv[])
 {
@@ -99,12 +103,12 @@ int main(int argc, char *argv[])
     //glViewport(0, 0, 800, 600);
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     glEnable(GL_DEPTH_TEST);
 
     glm::mat4 model = glm::mat4(1.0f);
     glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
     glm::mat4 projection = glm::mat4(1.0f);
     projection = glm::perspective(glm::radians(45.0f), (float) (SCR_WIDTH / SCR_HEIGHT), 0.1f, 100.0f);
 
@@ -116,10 +120,14 @@ int main(int argc, char *argv[])
 
         ourShader.use();
 
-        auto time = (float)glfwGetTime();
+        //auto time = (float)glfwGetTime();
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(sin(time), cos(time), -10.0f));
-        model = glm::rotate(model, time, glm::vec3(sin(time), cos(time), sin(2*time)));
+        //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+        //model = glm::rotate(model, time, glm::vec3(0.0f, 0.0f, 0.0f));
+
+        view = glm::lookAt(cam_pos * cam_radius,
+                           glm::vec3(0.0f, 0.0f, 0.0f),
+                           glm::vec3(0.0f, 1.0f, 0.0f));
 
         unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
@@ -152,4 +160,43 @@ void processInput(GLFWwindow *window)
 {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    static float xpos_last, ypos_last, x_ang, y_ang = 0;
+    double xpos, ypos = 0;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    // Check mouse button state
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        x_ang += (xpos - xpos_last) / 5;
+        y_ang += (ypos - ypos_last) / 5;
+        if (y_ang > 85)
+            y_ang = 85;
+        if (y_ang < -85)
+            y_ang = -85;
+        if (x_ang > 180)
+            x_ang -= 360;
+        if (x_ang < -180)
+            x_ang += 360;
+    }
+
+    auto r = (float) cos(y_ang * M_PI / 180.0f);
+    cam_pos = glm::vec3(r * sin(x_ang * M_PI / 180.0f),
+                        (float) sin(y_ang * M_PI / 180.0f),
+                        r * cos(x_ang * M_PI / 180.0f));
+
+//
+//    cam_rot = glm::rotate(cam_rot, (float) x_ang, glm::vec3(0.0f, 1.0f, 0.0f));
+//    cam_rot = glm::normalize(cam_rot);
+//    cam_rot = glm::rotate(cam_rot, (float) y_ang, glm::vec3(1.0f, 0.0f, 0.0f));
+//    cam_rot = glm::normalize(cam_rot);
+//
+//    cam_pos = glm::vec3(0.0f, 0.0f, 1.0f);
+//    cam_pos = glm::mat3_cast(cam_rot) * cam_pos;
+    xpos_last = xpos;
+    ypos_last = ypos;
+
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    cam_radius -= yoffset/10;
 }
