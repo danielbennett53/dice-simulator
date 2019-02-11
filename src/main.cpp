@@ -17,10 +17,11 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-static auto cam_pos = glm::vec3(0.0f, 0.0f, 1.0f);
+static auto projection = glm::mat4(1.0f);
+static auto view = glm::mat4(1.0f);
 static float cam_radius = 3;
 
-int main(int argc, char *argv[])
+int main()
 {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -57,7 +58,11 @@ int main(int argc, char *argv[])
             0.5f, -0.5f, -0.5f,   0.0f, 0.0f, 1.0f,
             0.5f, -0.5f, 0.5f,    0.0f, 0.0f, 1.0f,
             0.5f, 0.5f, -0.5f,    1.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, 0.5f,     1.0f, 0.0f, 1.0f
+            0.5f, 0.5f, 0.5f,     1.0f, 0.0f, 1.0f,
+            -0.5f, -(float) sin(M_PI/3)/2, -(float) sin(M_PI / 3)/2,     0.0f, 1.0f, 0.0f,
+            0.5f, -(float) sin(M_PI/3)/2, -(float) sin(M_PI / 3)/2,      1.0f, 0.0f, 0.0f,
+            0.0f, -(float) sin(M_PI/3)/2, (float) sin(M_PI / 3)/2,       0.0f, 0.0f, 1.0f,
+            0.0f, (float) sin(M_PI/3)/2, 0.0f, 1.0f, 1.0f, 0.0f
     };
 
     unsigned int indices[] = {  // note that we start from 0!
@@ -73,6 +78,13 @@ int main(int argc, char *argv[])
             3, 6, 7,
             4, 5, 6,
             5, 6, 7
+    };
+
+    unsigned int indices_2[] = {
+            8, 9, 10,
+            8, 9, 11,
+            8, 10, 11,
+            9, 10, 11
     };
     unsigned int VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
@@ -108,9 +120,8 @@ int main(int argc, char *argv[])
     glEnable(GL_DEPTH_TEST);
 
     glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 view = glm::mat4(1.0f);
-    glm::mat4 projection = glm::mat4(1.0f);
-    projection = glm::perspective(glm::radians(45.0f), (float) (SCR_WIDTH / SCR_HEIGHT), 0.1f, 100.0f);
+    //glm::mat4 projection = glm::mat4(1.0f);
+    projection = glm::perspective(glm::radians(45.0f),  ((float)SCR_WIDTH / SCR_HEIGHT), 0.1f, 100.0f);
 
     while(!glfwWindowShouldClose(window))
     {
@@ -125,19 +136,36 @@ int main(int argc, char *argv[])
         //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         //model = glm::rotate(model, time, glm::vec3(0.0f, 0.0f, 0.0f));
 
-        view = glm::lookAt(cam_pos * cam_radius,
-                           glm::vec3(0.0f, 0.0f, 0.0f),
-                           glm::vec3(0.0f, 1.0f, 0.0f));
 
-        unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+//        auto modelLoc = glGetUniformLocation(ourShader.ID, "model");
+//        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+//        auto viewLoc = glGetUniformLocation(ourShader.ID, "view");
+//        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+//        auto projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
+//        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        ourShader.setMat4f("model", model);
+        ourShader.setMat4f("view", view);
+        ourShader.setMat4f("projection", projection);
 
         glBindVertexArray(VAO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+        ourShader.setMat4f("model", model);
+//        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+        model = glm::translate(model, glm::vec3(-4.0f, 0.0f, 0.0f));
+        ourShader.setMat4f("model", model);
+//        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_2), indices_2, GL_STATIC_DRAW);
+        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, nullptr);
+
 
 
         glfwSwapBuffers(window);
@@ -154,6 +182,7 @@ int main(int argc, char *argv[])
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
+    projection = glm::perspective(glm::radians(45.0f),  ((float)width / height), 0.1f, 100.0f);
 }
 
 void processInput(GLFWwindow *window)
@@ -161,38 +190,53 @@ void processInput(GLFWwindow *window)
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    static float xpos_last, ypos_last, x_ang, y_ang = 0;
-    double xpos, ypos = 0;
-    glfwGetCursorPos(window, &xpos, &ypos);
+    static float mouse_x_last, mouse_y_last, x_ang, y_ang = 0;
+    static auto target = glm::vec3(0.0f, 0.0f, 0.0f);
+    double mouse_x, mouse_y = 0;
+    glm::vec3 cam_pos, up, right;
+    glfwGetCursorPos(window, &mouse_x, &mouse_y);
+    double diff_x = mouse_x - mouse_x_last;
+    double diff_y = mouse_y - mouse_y_last;
     // Check mouse button state
-    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-        x_ang += (xpos - xpos_last) / 5;
-        y_ang += (ypos - ypos_last) / 5;
-        if (y_ang > 85)
-            y_ang = 85;
-        if (y_ang < -85)
-            y_ang = -85;
-        if (x_ang > 180)
-            x_ang -= 360;
-        if (x_ang < -180)
-            x_ang += 360;
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) {
+        x_ang += diff_x / 5;
+        y_ang += diff_y / 5;
+    }
+
+    if (y_ang > 180)
+        y_ang -= 360;
+    if (y_ang < -180)
+        y_ang += 360;
+    if (x_ang > 180)
+        x_ang -= 360;
+    if (x_ang < -180)
+        x_ang += 360;
+
+    if (y_ang < 90 && y_ang > -90) {
+        up = glm::vec3(0.0f, 1.0f, 0.0f);
+    } else {
+        up = glm::vec3(0.0f, -1.0f, 0.0f);
     }
 
     auto r = (float) cos(y_ang * M_PI / 180.0f);
     cam_pos = glm::vec3(r * sin(x_ang * M_PI / 180.0f),
                         (float) sin(y_ang * M_PI / 180.0f),
                         r * cos(x_ang * M_PI / 180.0f));
+    right = glm::normalize(glm::cross(cam_pos, up));
 
-//
-//    cam_rot = glm::rotate(cam_rot, (float) x_ang, glm::vec3(0.0f, 1.0f, 0.0f));
-//    cam_rot = glm::normalize(cam_rot);
-//    cam_rot = glm::rotate(cam_rot, (float) y_ang, glm::vec3(1.0f, 0.0f, 0.0f));
-//    cam_rot = glm::normalize(cam_rot);
-//
-//    cam_pos = glm::vec3(0.0f, 0.0f, 1.0f);
-//    cam_pos = glm::mat3_cast(cam_rot) * cam_pos;
-    xpos_last = xpos;
-    ypos_last = ypos;
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+        target += (right * (float) (diff_x/200)) +
+                (glm::cross(right, cam_pos) * (float) (diff_y/200));
+    }
+
+    cam_pos = cam_pos * cam_radius + target;
+
+    view = glm::lookAt(cam_pos,
+                       target,
+                       up);
+
+    mouse_x_last = (float) mouse_x;
+    mouse_y_last = (float) mouse_y;
 
 }
 
