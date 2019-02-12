@@ -40,14 +40,22 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
     }
 
     shader_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
-                 PROJECT_DIR "/src/shaders/fragment.glsl");
+                         PROJECT_DIR "/src/shaders/fragment.glsl");
 
     // Initialize scene with floor
     float vertices[] = {
             -100.0f, 0.0f, -100.0f,  0.0f, 0.75f, 0.75f,
             -100.0f, 0.0f,  100.0f,  0.0f, 0.75f, 0.75f,
              100.0f, 0.0f,  100.0f,  0.0f, 0.75f, 0.75f,
-             100.0f, 0.0f, -100.0f,  0.0f, 0.75f, 0.75f
+             100.0f, 0.0f, -100.0f,  0.0f, 0.75f, 0.75f,
+            -0.5f,  -0.5f,   -0.5f,  1.0f,  0.0f,  0.0f,
+            -0.5f,  -0.5f,    0.5f,  1.0f,  0.0f,  0.0f,
+            -0.5f,   0.5f,   -0.5f,  0.0f,  1.0f,  0.0f,
+            -0.5f,   0.5f,    0.5f,  0.0f,  1.0f,  0.0f,
+            0.5f,   -0.5f,   -0.5f,  0.0f,  0.0f,  1.0f,
+            0.5f,   -0.5f,    0.5f,  0.0f,  0.0f,  1.0f,
+            0.5f,    0.5f,   -0.5f,  1.0f,  0.0f,  1.0f,
+            0.5f,    0.5f,    0.5f,  1.0f,  0.0f,  1.0f
     };
 
     unsigned int indices[] = {
@@ -96,7 +104,7 @@ Visualizer::~Visualizer()
     glfwTerminate();
 }
 
-void Visualizer::update()
+void Visualizer::update(glm::mat4 die_tf)
 {
     this->processInput();
     glClearColor(0.2f, 0.3f, 0.7f, 1.0f);
@@ -120,6 +128,27 @@ void Visualizer::update()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, nullptr);
+
+    unsigned int indices_2[] = {  // note that we start from 0!
+            4, 5, 6,
+            5, 6, 7,
+            4, 6, 8,
+            6, 8, 10,
+            4, 5, 8,
+            5, 8, 9,
+            5, 7, 9,
+            7, 9, 11,
+            6, 7, 10,
+            7, 10, 11,
+            8, 9, 10,
+            9, 10, 11
+    };
+
+    shader_->setMat4f("model", die_tf);
+    shader_->setMat4f("view", cam_view_);
+    shader_->setMat4f("projection", projection);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_2), indices_2, GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
 
     glfwSwapBuffers(window_);
     glfwPollEvents();
