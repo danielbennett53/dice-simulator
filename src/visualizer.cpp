@@ -3,7 +3,6 @@
 #include "glad/glad.h"
 #include <iostream>
 #include <cmath>
-//#include "shader.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -30,6 +29,8 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
         exit(EXIT_FAILURE);
     }
     glfwMakeContextCurrent(window_);
+    // Set user pointer for callbacks
+    glfwSetWindowUserPointer(window_, this);
 
     // Load openGL/GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -37,6 +38,9 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
         std::cout << "Failed to initialize GLAD" << std::endl;
         exit(EXIT_FAILURE);
     }
+
+    shader_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
+                 PROJECT_DIR "/src/shaders/fragment.glsl");
 
     // Initialize scene with floor
     float vertices[] = {
@@ -73,7 +77,8 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
     glEnableVertexAttribArray(1);
 
     // Bind callbacks
-    this->bindCallbacks();
+    glfwSetFramebufferSizeCallback(window_, windowResizeCallback);
+    glfwSetScrollCallback(window_, scrollCallback);
 
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
@@ -91,6 +96,49 @@ Visualizer::~Visualizer()
     glfwTerminate();
 }
 
+void Visualizer::update()
+{
+    this->processInput();
+    glClearColor(0.2f, 0.3f, 0.7f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    shader_->use();
+    auto model = glm::mat4(1.0f);
+    auto projection = glm::perspective(glm::radians(45.0f),
+            ((float)win_width_ / win_height_), 0.1f, 100.0f);
+
+    shader_->setMat4f("model", model);
+    shader_->setMat4f("view", cam_view_);
+    shader_->setMat4f("projection", projection);
+
+    unsigned int indices[] = {
+            0, 1, 2,
+            0, 2, 3
+    };
+
+    glBindVertexArray(VAO_);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, nullptr);
+
+    glfwSwapBuffers(window_);
+    glfwPollEvents();
+}
+
+void Visualizer::processInput()
+{
+    // Exit when escape is pressed
+    if (glfwGetKey(window_, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window_, true);
+
+    // Get mouse position
+    double mouse_x, mouse_y;
+    glfwGetCursorPos(window_, &mouse_x, &mouse_y);
+
+    // Update current camera view
+    this->updateCameraView(mouse_x, mouse_y);
+}
+
 void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
 {
     // Store last position of mouse
@@ -100,7 +148,8 @@ void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
     double diffY = cursorPosY - lastPosY;
 
     // Rotations about X and Y axes
-    static double xAng, yAng = 0;
+    static double xAng;
+    static double yAng = 10;
 
     // Vectors for defining camera view
     static glm::vec3 cam_target = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -155,28 +204,16 @@ void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
     lastPosY = cursorPosY;
 }
 
-void Visualizer::bindCallbacks()
+void windowResizeCallback(GLFWwindow* window, int width, int height)
 {
-    auto size_cb_fun = [this] (GLFWwindow* window, int width, int height)
-            { this->windowResizeCallback(window, width, height); };
-    glfwSetFramebufferSizeCallback(window_,
-            *(GLFWframebuffersizefun*) (void*) &size_cb_fun);
-
-    auto scroll_cb_fun = [this] (GLFWwindow* window, double x, double y)
-            { this->scrollCallback(window, x, y); };
-    glfwSetScrollCallback(window_,
-            *(GLFWscrollfun*) (void*) &scroll_cb_fun);
-}
-
-
-void Visualizer::windowResizeCallback(GLFWwindow* window, int width, int height)
-{
-    win_height_ = (unsigned int) height;
-    win_width_ = (unsigned int) width;
+    auto vis = (Visualizer*) glfwGetWindowUserPointer(window);
+    vis->win_height_ = (unsigned int) height;
+    vis->win_width_ = (unsigned int) width;
     glViewport(0, 0, width, height);
 }
 
-void Visualizer::scrollCallback(GLFWwindow* window, double x, double y)
+void scrollCallback(GLFWwindow* window, double x, double y)
 {
-    cam_radius_ -= y/10;
+    auto vis = (Visualizer*) glfwGetWindowUserPointer(window);
+    vis->cam_radius_ -= y/10;
 }
