@@ -6,6 +6,8 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 
 Visualizer::Visualizer(unsigned int height, unsigned int width)
@@ -39,23 +41,27 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
         exit(EXIT_FAILURE);
     }
 
-    shader_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
-                         PROJECT_DIR "/src/shaders/fragment.glsl");
+    shader1_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
+                          PROJECT_DIR "/src/shaders/fragment.glsl");
+    shader2_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
+                          PROJECT_DIR "/src/shaders/fragment_color.glsl");
+    // Load floor texture
+    textures_.push_back(loadTexture(PROJECT_DIR "/resources/checkerboard.png"));
 
     // Initialize scene with floor
     float vertices[] = {
-            -100.0f, 0.0f, -100.0f,  0.0f, 0.75f, 0.75f,
-            -100.0f, 0.0f,  100.0f,  0.0f, 0.75f, 0.75f,
-             100.0f, 0.0f,  100.0f,  0.0f, 0.75f, 0.75f,
-             100.0f, 0.0f, -100.0f,  0.0f, 0.75f, 0.75f,
-            -0.5f,  -0.5f,   -0.5f,  1.0f,  0.0f,  0.0f,
-            -0.5f,  -0.5f,    0.5f,  1.0f,  0.0f,  0.0f,
-            -0.5f,   0.5f,   -0.5f,  0.0f,  1.0f,  0.0f,
-            -0.5f,   0.5f,    0.5f,  0.0f,  1.0f,  0.0f,
-            0.5f,   -0.5f,   -0.5f,  0.0f,  0.0f,  1.0f,
-            0.5f,   -0.5f,    0.5f,  0.0f,  0.0f,  1.0f,
-            0.5f,    0.5f,   -0.5f,  1.0f,  0.0f,  1.0f,
-            0.5f,    0.5f,    0.5f,  1.0f,  0.0f,  1.0f
+            -100.0f, 0.0f, -100.0f,  0.0f, 0.75f, 0.75f, 0.0, 0.0,
+            -100.0f, 0.0f,  100.0f,  0.0f, 0.75f, 0.75f, 0.0, 100.0,
+             100.0f, 0.0f,  100.0f,  0.0f, 0.75f, 0.75f, 100.0, 100.0,
+             100.0f, 0.0f, -100.0f,  0.0f, 0.75f, 0.75f, 100.0, 0.0,
+            -0.5f,  -0.5f,   -0.5f,  1.0f,  0.0f,  0.0f, 0.0, 0.0,
+            -0.5f,  -0.5f,    0.5f,  1.0f,  0.0f,  0.0f, 0.0, 0.0,
+            -0.5f,   0.5f,   -0.5f,  0.0f,  1.0f,  0.0f, 0.0, 0.0,
+            -0.5f,   0.5f,    0.5f,  0.0f,  1.0f,  0.0f, 0.0, 0.0,
+            0.5f,   -0.5f,   -0.5f,  0.0f,  0.0f,  1.0f, 0.0, 0.0,
+            0.5f,   -0.5f,    0.5f,  0.0f,  0.0f,  1.0f, 0.0, 0.0,
+            0.5f,    0.5f,   -0.5f,  1.0f,  0.0f,  1.0f, 0.0, 0.0,
+            0.5f,    0.5f,    0.5f,  1.0f,  0.0f,  1.0f, 0.0, 0.0
     };
 
     unsigned int indices[] = {
@@ -78,11 +84,14 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // Define position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
     //color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
     glEnableVertexAttribArray(1);
+    // Texture attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     // Bind callbacks
     glfwSetFramebufferSizeCallback(window_, windowResizeCallback);
@@ -110,20 +119,21 @@ void Visualizer::update(glm::mat4 die_tf)
     glClearColor(0.2f, 0.3f, 0.7f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    shader_->use();
+    shader1_->use();
     auto model = glm::mat4(1.0f);
     auto projection = glm::perspective(glm::radians(45.0f),
             ((float)win_width_ / win_height_), 0.1f, 100.0f);
 
-    shader_->setMat4f("model", model);
-    shader_->setMat4f("view", cam_view_);
-    shader_->setMat4f("projection", projection);
+    shader1_->setMat4f("model", model);
+    shader1_->setMat4f("view", cam_view_);
+    shader1_->setMat4f("projection", projection);
 
     unsigned int indices[] = {
             0, 1, 2,
             0, 2, 3
     };
 
+    glBindTexture(GL_TEXTURE_2D, this->textures_.at(0));
     glBindVertexArray(VAO_);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
@@ -144,11 +154,35 @@ void Visualizer::update(glm::mat4 die_tf)
             9, 10, 11
     };
 
-    shader_->setMat4f("model", die_tf);
-    shader_->setMat4f("view", cam_view_);
-    shader_->setMat4f("projection", projection);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_2), indices_2, GL_STATIC_DRAW);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
+    shader2_->use();
+
+    shader2_->setMat4f("model", die_tf);
+    shader2_->setMat4f("view", cam_view_);
+    shader2_->setMat4f("projection", projection);
+    auto color = glm::vec3(0.0, 0.0, 1.0);
+    shader2_->setVec3f("ourColor", color);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, indices_2, GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
+    color = glm::vec3(1.0, 0.0, 0.0);
+    shader2_->setVec3f("ourColor", color);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[6], GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
+    color = glm::vec3(0.0, 1.0, 0.0);
+    shader2_->setVec3f("ourColor", color);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[12], GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
+    color = glm::vec3(1.0, 1.0, 0.0);
+    shader2_->setVec3f("ourColor", color);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[18], GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
+    color = glm::vec3(1.0, 0.0, 1.0);
+    shader2_->setVec3f("ourColor", color);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[24], GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
+    color = glm::vec3(0.0, 1.0, 1.0);
+    shader2_->setVec3f("ourColor", color);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[30], GL_STATIC_DRAW);
+    glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
 
     glfwSwapBuffers(window_);
     glfwPollEvents();
@@ -233,7 +267,39 @@ void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
     lastPosY = cursorPosY;
 }
 
-void windowResizeCallback(GLFWwindow* window, int width, int height)
+unsigned int Visualizer::loadTexture(const char* image_path)
+{
+    // Init texture
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // set the texture wrapping/filtering options (on the currently bound texture object)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // load and generate the texture
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(image_path, &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+
+    // Free image data
+    stbi_image_free(data);
+
+    return texture;
+}
+
+void Visualizer::windowResizeCallback(GLFWwindow* window, int width, int height)
 {
     auto vis = (Visualizer*) glfwGetWindowUserPointer(window);
     vis->win_height_ = (unsigned int) height;
@@ -241,8 +307,10 @@ void windowResizeCallback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void scrollCallback(GLFWwindow* window, double x, double y)
+void Visualizer::scrollCallback(GLFWwindow* window, double x, double y)
 {
+    (void) x;
     auto vis = (Visualizer*) glfwGetWindowUserPointer(window);
-    vis->cam_radius_ -= y/10;
+    vis->cam_radius_ -= y/5;
 }
+
