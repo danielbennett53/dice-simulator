@@ -46,7 +46,45 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
     shader2_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
                           PROJECT_DIR "/src/shaders/fragment_color.glsl");
     // Load floor texture
-    textures_.push_back(loadTexture(PROJECT_DIR "/resources/checkerboard.png"));
+//    textures_.push_back(loadTexture(PROJECT_DIR "/resources/checkerboard.png"));
+    // Load texture array
+    unsigned int texture_unit = 1;
+    glActiveTexture(GL_TEXTURE0+texture_unit);
+    unsigned int tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, tex);
+
+//    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, 256, 256, 1);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, 256, 256, 6, 0, GL_RGBA, GL_UNSIGNED_INT, nullptr);
+    // set the texture wrapping/filtering options (on the currently bound texture object)
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // load and generate the texture
+    int w, h, nrChannels;
+    unsigned char *data = stbi_load(PROJECT_DIR "/resources/square_1.png", &w, &h, &nrChannels, 0);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, w, h, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = stbi_load(PROJECT_DIR "/resources/square_2.png", &w, &h, &nrChannels, 0);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, w, h, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = stbi_load(PROJECT_DIR "/resources/square_3.png", &w, &h, &nrChannels, 0);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, w, h, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = stbi_load(PROJECT_DIR "/resources/square_4.png", &w, &h, &nrChannels, 0);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 3, w, h, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = stbi_load(PROJECT_DIR "/resources/square_5.png", &w, &h, &nrChannels, 0);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 4, w, h, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = stbi_load(PROJECT_DIR "/resources/square_6.png", &w, &h, &nrChannels, 0);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 5, w, h, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+    GLuint sampler_loc = glGetUniformLocation(shader1_->ID, "ourTexture");
+    glUniform1i(sampler_loc, texture_unit);
+
+    stbi_image_free(data);
+    textures_.push_back(tex);
+
+
 
     // Initialize scene with floor
     float vertices[] = {
@@ -128,12 +166,16 @@ void Visualizer::update(glm::mat4 die_tf)
     shader1_->setMat4f("view", cam_view_);
     shader1_->setMat4f("projection", projection);
 
+    int layer = 2;
+
     unsigned int indices[] = {
             0, 1, 2,
             0, 2, 3
     };
-
-    glBindTexture(GL_TEXTURE_2D, this->textures_.at(0));
+//
+    glBindTexture(GL_TEXTURE_2D_ARRAY, this->textures_.at(0));
+    shader1_->setInt("ourTexture", this->textures_.at(0));
+    shader1_->setInt("layer", layer);
     glBindVertexArray(VAO_);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
@@ -154,33 +196,31 @@ void Visualizer::update(glm::mat4 die_tf)
             9, 10, 11
     };
 
-    shader2_->use();
+    shader1_->setMat4f("model", die_tf);
+    shader1_->setMat4f("view", cam_view_);
+    shader1_->setMat4f("projection", projection);
 
-    shader2_->setMat4f("model", die_tf);
-    shader2_->setMat4f("view", cam_view_);
-    shader2_->setMat4f("projection", projection);
-    auto color = glm::vec3(0.0, 0.0, 1.0);
-    shader2_->setVec3f("ourColor", color);
+    shader1_->setInt("layer", layer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, indices_2, GL_STATIC_DRAW);
     glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
-    color = glm::vec3(1.0, 0.0, 0.0);
-    shader2_->setVec3f("ourColor", color);
+    layer = 1;
+    shader1_->setInt("layer", layer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[6], GL_STATIC_DRAW);
     glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
-    color = glm::vec3(0.0, 1.0, 0.0);
-    shader2_->setVec3f("ourColor", color);
+    layer = 2;
+    shader1_->setInt("layer", layer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[12], GL_STATIC_DRAW);
     glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
-    color = glm::vec3(1.0, 1.0, 0.0);
-    shader2_->setVec3f("ourColor", color);
+    layer = 3;
+    shader1_->setInt("layer", layer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[18], GL_STATIC_DRAW);
     glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
-    color = glm::vec3(1.0, 0.0, 1.0);
-    shader2_->setVec3f("ourColor", color);
+    layer = 4;
+    shader1_->setInt("layer", layer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[24], GL_STATIC_DRAW);
     glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
-    color = glm::vec3(0.0, 1.0, 1.0);
-    shader2_->setVec3f("ourColor", color);
+    layer = 5;
+    shader1_->setInt("layer", layer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, &indices_2[30], GL_STATIC_DRAW);
     glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
 
@@ -252,8 +292,8 @@ void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
     // Move camera target with right-click
     if (glfwGetMouseButton(window_, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
         right = glm::normalize(glm::cross(cam_pos, up));
-        cam_target += (right * (float) (diffX/200)) +
-                  (glm::cross(right, cam_pos) * (float) (diffY/200));
+        cam_target += (right * (float) (diffX/50)) +
+                  (glm::cross(right, cam_pos) * (float) (diffY/50));
     }
 
     // Calculate absolute camera position
@@ -311,6 +351,6 @@ void Visualizer::scrollCallback(GLFWwindow* window, double x, double y)
 {
     (void) x;
     auto vis = (Visualizer*) glfwGetWindowUserPointer(window);
-    vis->cam_radius_ -= y/5;
+    vis->cam_radius_ -= y;
 }
 
