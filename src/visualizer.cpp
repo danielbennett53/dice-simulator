@@ -43,8 +43,6 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
 
     shader1_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
                           PROJECT_DIR "/src/shaders/fragment.glsl");
-    shader2_ = new Shader(PROJECT_DIR "/src/shaders/vertex.glsl",
-                          PROJECT_DIR "/src/shaders/fragment_color.glsl");
     // Load floor texture
 //    textures_.push_back(loadTexture(PROJECT_DIR "/resources/checkerboard.png"));
     // Load texture array
