@@ -2,7 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include "glm/glm.hpp"
-#include "shaders/shader.h"
+#include "shaders/Shader.h"
 #include <vector>
 
 class Visualizer

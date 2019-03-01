@@ -1,4 +1,4 @@
-#include "mesh.h"
+#include "Mesh.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <GLFW/glfw3.h>
 #include "glad/glad.h"

@@ -1,3 +1,3 @@
-#include "solidBody.h"
+#include "SolidBody.h"
 
 SolidBody::SolidBody()
