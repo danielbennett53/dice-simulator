@@ -7,23 +7,23 @@
 
 namespace Dice {
     typedef struct {
-        int num;
-        std::vector<int> indices;
-        std::vector<std::vector<double>> tex_coords;
+        unsigned int num;
+        std::vector<unsigned int> indices;
+        std::vector<std::vector<float>> tex_coords;
         std::string texture_file;
-        std::vector<double> color;
+        std::vector<float> color;
     } Face;
 
     typedef struct {
-        std::vector<std::vector<double>> vertices;
+        std::vector<std::vector<float>> vertices;
         std::vector<Face> faces;
     } Die;
 
 
     // Generation functions
-    Mesh generateMesh(Die type);
-    SolidBody generateSolidBody(Die type);
+    std::shared_ptr<Mesh> generateMesh(Die type, unsigned int textureUnit);
+    std::shared_ptr<SolidBody> generateSolidBody(Die type, std::shared_ptr<Mesh> mesh);
 
     // Prototypes of different dice types
-    extern Die d6;
+    extern const Die d6;
 };

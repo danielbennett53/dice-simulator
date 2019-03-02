@@ -82,6 +82,9 @@ void Mesh::setupMesh()
 
     // Unbind vertex array
     glBindVertexArray(0);
+
+    // Set transform to identity
+    modelTF_ = glm::mat4(1.0f);
 }
 
 

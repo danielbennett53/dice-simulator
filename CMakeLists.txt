@@ -10,9 +10,9 @@ add_compile_definitions(PROJECT_DIR="${PROJECT_SOURCE_DIR}")
 find_package(OpenGL REQUIRED)
 find_package(glfw3 3.2 REQUIRED)
 
-add_executable(dice-simulator src/main.cpp)# src/glad.c
-#                src/visualizer.cpp src/shaders/shader.cpp
-#                src/mesh.cpp)
+add_executable(dice-simulator src/main.cpp src/glad.c
+                src/Visualizer.cpp src/shaders/Shader.cpp
+                src/Mesh.cpp )#src/SolidBody.cpp src/Dice.cpp)
 
 target_include_directories(dice-simulator PRIVATE "include")
 target_link_libraries(dice-simulator GL X11 pthread Xrandr Xi dl glfw)
