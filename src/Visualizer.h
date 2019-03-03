@@ -20,7 +20,7 @@ public:
     unsigned int win_width_;
     unsigned int win_height_;
     // Distance from camera position to camera target
-    float cam_radius_ = 10.0f;
+    float cam_radius_ = 40.0f;
     // Private class properties
     GLFWwindow* window_;
     // List of meshes to draw

@@ -9,5 +9,5 @@ uniform sampler2DArray tex;
 
 void main()
 {
-    FragColor = texture(tex, vec3(tex_coord, 0));
+    FragColor = texture(tex, vec3(tex_coord, tex_num));
 }

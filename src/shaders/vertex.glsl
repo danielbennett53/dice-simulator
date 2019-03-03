@@ -7,7 +7,7 @@ layout (location = 3) in int tex_num_in;
 
 out vec3 color;
 out vec2 tex_coord;
-out int tex_num;
+flat out int tex_num;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;

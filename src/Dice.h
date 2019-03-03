@@ -3,7 +3,8 @@
 
 #include <string>
 #include "Mesh.h"
-#include "SolidBody.h"
+#include <memory>
+//#include "SolidBody.h"
 
 namespace Dice {
     typedef struct {
@@ -22,7 +23,7 @@ namespace Dice {
 
     // Generation functions
     std::shared_ptr<Mesh> generateMesh(Die type, unsigned int textureUnit);
-    std::shared_ptr<SolidBody> generateSolidBody(Die type, std::shared_ptr<Mesh> mesh);
+//    std::shared_ptr<SolidBody> generateSolidBody(Die type, std::shared_ptr<Mesh> mesh);
 
     // Prototypes of different dice types
     extern const Die d6;

@@ -4,6 +4,7 @@
 #include "glad/glad.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include <iostream>
 
 Mesh::Mesh(std::vector<glmVertex> vertices, std::vector<unsigned int> indices,
            Texture texture, unsigned int textureUnit)
@@ -66,7 +67,7 @@ void Mesh::setupMesh()
 
     // Define position attribute
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glmVertex), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glmVertex), nullptr);
     // Define color attribute
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glmVertex),
@@ -77,7 +78,7 @@ void Mesh::setupMesh()
                           (void*)offsetof(glmVertex, texCoords));
     // Define texture number attribute
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 1, GL_INT, GL_FALSE, sizeof(glmVertex),
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_TRUE, sizeof(glmVertex),
                           (void*)offsetof(glmVertex, texNum));
 
     // Unbind vertex array
@@ -94,8 +95,10 @@ void Mesh::loadTextures(unsigned int textureUnit)
     if (texture_.file_paths.empty())
         return;
 
+    texUnit_ = textureUnit;
+
     // Activate texture
-    glActiveTexture(GL_TEXTURE0 + textureUnit);
+    glActiveTexture(GL_TEXTURE0 + texUnit_);
 
     // Load texture array
     glGenTextures(1, &texture_.id);
@@ -103,8 +106,7 @@ void Mesh::loadTextures(unsigned int textureUnit)
 
     // Load the first image to get size
     int w, h, nrChannels;
-    unsigned char *data = stbi_load(texture_.file_paths[0].c_str(), &w, &h,
-                                    &nrChannels, 0);
+    stbi_load(texture_.file_paths[0].c_str(), &w, &h, &nrChannels, 0);
 
     // Initialize the texture array
     auto depth = (GLsizei) texture_.file_paths.size();
@@ -112,30 +114,31 @@ void Mesh::loadTextures(unsigned int textureUnit)
                  GL_UNSIGNED_INT, nullptr);
 
     // Set the texture wrapping/filtering options
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // Iterate through filepaths
     for (int i=0; i<depth; ++i) {
-        data = stbi_load(texture_.file_paths[i].c_str(), &w, &h, &nrChannels, 0);
+        unsigned char* data = stbi_load(texture_.file_paths[i].c_str(), &w, &h, &nrChannels, 0);
         glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, w, h, 1, GL_RGBA,
                         GL_UNSIGNED_BYTE, data);
+        stbi_image_free(data);
     }
 
     // Unbind texture and free data
     glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-    stbi_image_free(data);
 }
 
 
 void Mesh::draw(Shader shader)
 {
     // Activate texture and bind it
-    shader.setInt("texture", texUnit_);
+    shader.setInt("tex", texUnit_);
+    glActiveTexture(GL_TEXTURE0 + texUnit_);
     glBindTexture(GL_TEXTURE_2D_ARRAY, texture_.id);
-    glActiveTexture(texUnit_);
 
     // Set model transform
     shader.setMat4f("model", modelTF_);
