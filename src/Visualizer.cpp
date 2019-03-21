@@ -145,7 +145,10 @@ void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
 
     // Calculate absolute camera position
     cam_pos = cam_pos * cam_radius_ + cam_target;
-
+    // Don't let camera go below floor
+    if (cam_pos[1] < 0.1) {
+        cam_pos[1] = 0.1;
+    }
     // Calculate camera view
     cam_view_ = glm::lookAt(cam_pos, cam_target, up);
 

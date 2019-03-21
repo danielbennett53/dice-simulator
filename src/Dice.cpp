@@ -4,7 +4,7 @@
 #include <memory>
 #include "Mesh.h"
 #include <iostream>
-//#include "SolidBody.h"
+#include "SolidBody.h"
 
 
 namespace Dice {
@@ -42,22 +42,22 @@ namespace Dice {
         return std::make_shared<Mesh>(vertices, indices, texture, textureUnit);
     }
 
-//    std::shared_ptr<SolidBody> generateSolidBody(Die dieType, std::shared_ptr<Mesh> mesh) {
-//
-//        std::vector<Eigen::Vector3d> vertices;
-//        std::vector<std::vector<unsigned int>> faces;
-//
-//        for (auto vertex : dieType.vertices) {
-//            Eigen::Vector3d vec(vertex[0], vertex[1], vertex[2]);
-//            vertices.push_back(vec);
-//        }
-//        for (const auto &face : dieType.faces) {
-//            faces.push_back(face.indices);
-//        }
-//
-//        // Return shared pointer to mesh object
-//        return std::make_shared<SolidBody>(vertices, faces, mesh);
-//    }
+    std::shared_ptr<SolidBody> generateSolidBody(Die dieType, std::shared_ptr<Mesh> mesh) {
+
+        std::vector<Eigen::Vector3d> vertices;
+        std::vector<std::vector<unsigned int>> faces;
+
+        for (auto vertex : dieType.vertices) {
+            Eigen::Vector3d vec(vertex[0], vertex[1], vertex[2]);
+            vertices.push_back(vec);
+        }
+        for (const auto &face : dieType.faces) {
+            faces.push_back(face.indices);
+        }
+
+        // Return shared pointer to mesh object
+        return std::make_shared<SolidBody>(vertices, faces, mesh);
+    }
 
 
     const Die d6 = {

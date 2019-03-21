@@ -12,8 +12,7 @@ public:
     SolidBody(std::vector<Eigen::Vector3d> vertices,
             std::vector<std::vector<unsigned int>> faces,
             std::shared_ptr<Mesh> mesh);
-    void updateState(double Ts);
-    Mesh generateMesh(void);
+    void updatePosition(double Ts);
 
 private:
     // Vertices defined relative to COM
@@ -23,16 +22,18 @@ private:
 
     Eigen::Vector3d COM_;
     Eigen::Quaterniond orientation_;
+    Eigen::Matrix<double, 6, 1> vel_;
     std::shared_ptr<Mesh> mesh_;
 
-    double m_;
-    Eigen::Matrix3d I_;
+    Eigen::Matrix<double, 6, 6> M_;
     struct {
-        double radius_; // Radius of bounding circle
-        double stiffness_;
-        double damping_;
+        double radius; // Radius of bounding circle
+        double stiffness;
+        double damping;
     } intersection_properties_;
 
-    void groundIntersection(void);
+    Eigen::Matrix<double, Eigen::Dynamic, 6> getContactJacobian();
+
+//    void groundIntersection(void);
 };
 
