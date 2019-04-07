@@ -157,8 +157,8 @@ void Mesh::updateModelTF(glm::mat4 transform)
 void Mesh::updateModelTF(Eigen::Vector3d position, Eigen::Quaterniond orientation)
 {
     auto tf = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-    tf.rotate(orientation);
     tf.translate(position);
+    tf.rotate(orientation);
 
     modelTF_ = glm::make_mat4(tf.data());
 }
