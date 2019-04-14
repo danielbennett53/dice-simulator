@@ -56,7 +56,8 @@ int main()
 
     die_mesh->updateModelTF(Eigen::Vector3d(5, 5, 0), Eigen::Quaterniond(0,0,0,0));
     rigid_body->COM_ = Eigen::Vector3d(5, 10, 0);
-    rigid_body->orientation_ = Eigen::AngleAxisd(.9, Eigen::Vector3d(1, 1, 1));
+    rigid_body->orientation_ = Eigen::AngleAxisd(.3, Eigen::Vector3d(0.5, .1, 1));
+    rigid_body->vel_ << .2, -.1, .4, 0.1, 0.5, 0.0;
 
     while(!glfwWindowShouldClose(vis.window_))
     {
