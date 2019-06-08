@@ -29,7 +29,6 @@ double myfunc(unsigned int n, const double *x, double *grad, void *my_func_data)
         }
     }
 
-
     double out = 0.5*X.dot(data->A*X) + data->b.dot(X);
     return out;
 }
@@ -37,7 +36,7 @@ double myfunc(unsigned int n, const double *x, double *grad, void *my_func_data)
 double friction_constraint(unsigned int n, const double *x, double *grad, void *in_data)
 {
     auto *data = (friction_constraint_data *) in_data;
-    double mu = 0.8;
+    double mu = 0.7;
     if (grad) {
         memset(grad, 0, sizeof(double)*n);
         grad[data->idx] = data->sign;
@@ -65,56 +64,59 @@ void SolidBody::updatePosition()
 {
     // Rotate orientation vector by current velocity
     Eigen::Quaterniond ang_vel;
-    ang_vel.x() = vel_(0) * Ts_/2;
-    ang_vel.y() = vel_(1) * Ts_/2;
-    ang_vel.z() = vel_(2) * Ts_/2;
+    ang_vel.vec() = vel_.head(3) * Ts_/2;
     ang_vel.w() = 1.0f;
-    orientation_ *= ang_vel;
+    orientation_ = ang_vel*orientation_;
     orientation_.normalize();
 
     // Translate center of mass
-    COM_(0) += vel_(3) * Ts_;
-    COM_(1) += vel_(4) * Ts_;
-    COM_(2) += vel_(5) * Ts_;
-
+    COM_ += vel_.tail(3) * Ts_;
     mesh_->updateModelTF(COM_, orientation_);
 }
 
 
-Eigen::Matrix<double, Eigen::Dynamic, 6> SolidBody::getContactJacobian()
+Eigen::Matrix<double, 3, 6> SolidBody::getContactJacobian(int idx)
 {
-    Eigen::Matrix<double, Eigen::Dynamic, 6> Jc;
-    long nrows = 0;
+    Eigen::Matrix<double, 3, 6> Jc;
 
-    for (const auto &vertex : vertices_) {
-        Eigen::Quaterniond v_q;
-        v_q.vec() = vertex;
-        v_q.w() = 0;
-        auto tfVertex_q = orientation_ * v_q * orientation_.inverse();
-        auto tfVertex = tfVertex_q.vec();
-        auto vertex_global = tfVertex + COM_;
+    Eigen::Quaterniond v_q;
+    v_q.vec() = vertices_[idx];
+    v_q.w() = 0;
+    auto tfVertex_q = orientation_ * v_q * orientation_.inverse();
+    auto tfVertex = tfVertex_q.vec();
+    auto vertex_global = tfVertex + COM_;
 
-        if (vertex_global(1) <= 0) {
-            nrows += 3;
-            Jc.conservativeResize(nrows, Eigen::NoChange_t());
-            Eigen::Matrix3d r_cross;
-            r_cross << 0, -tfVertex(2), tfVertex(1),
-                       tfVertex(2), 0, -tfVertex(0),
-                       -tfVertex(1), tfVertex(0), 0;
-            Jc.bottomLeftCorner(3,3) = -r_cross;
-            Jc.bottomRightCorner(3,3) = Eigen::Matrix3d::Identity();
-        }
-    }
+    Eigen::Matrix3d r_cross;
+    r_cross << 0, -tfVertex(2), tfVertex(1),
+            tfVertex(2), 0, -tfVertex(0),
+            -tfVertex(1), tfVertex(0), 0;
+    Jc.bottomLeftCorner(3,3) = -r_cross;
+    Jc.bottomRightCorner(3,3) = Eigen::Matrix3d::Identity();
+
     return Jc;
 }
 
+Eigen::VectorXd clamp(Eigen::VectorXd in, double tol)
+{
+    Eigen::VectorXd out(in.rows());
+    for (int i=0; i<in.rows(); ++i) {
+        if (fabs(in(i)) < tol) {
+            out(i) = 0.0;
+        } else {
+            out(i) = in(i);
+        }
+    }
+    return out;
+}
 
 void SolidBody::step()
 {
     Eigen::Matrix<double, Eigen::Dynamic, 6> Jc;
     Eigen::Matrix<double, Eigen::Dynamic, 1> x_err;
-    double k = 70;
-    double b = 2;
+    double e = 0.001;
+    double tau = 0.01;
+    double B = 2*(1+e)*(1/tau);
+    double K = (1+e)/(tau*tau);
     long nrows = 0;
 
     for (const auto &vertex : vertices_) {
@@ -154,11 +156,15 @@ void SolidBody::step()
         A = Jc * M_.inverse() * Jc.transpose();
 
         Eigen::VectorXd contact_vel(size);
-        contact_vel = Jc * vel_;
+        contact_vel = Jc * v_hat;
         Eigen::VectorXd v_star(size);
-        v_star = A * (-k * x_err - b * contact_vel) * Ts_ + contact_vel;
+        v_star = (-K * x_err - B * v_minus) * Ts_ + contact_vel;
         Eigen::MatrixXd R(size,size);
-        R = Eigen::MatrixXd::Identity(size, size) * 0.01;
+        R = Eigen::MatrixXd::Identity(size, size);
+        for ( int j=0; j<size; ++j) {
+            double a_jj = A(j,j)*e;
+            R(j,j) = a_jj < 0.07 ? 0.07 : a_jj;
+        }
 
         contact_problem_data prob_data = {
                 .A = (A + R),
@@ -188,30 +194,30 @@ void SolidBody::step()
                     .normal_idx = 3*i+1,
                     .sign = 1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-10);
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
             constraint_data = {
                     .idx = 3*i,
                     .normal_idx = 3*i+1,
                     .sign = -1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-10);
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
             constraint_data = {
                     .idx = 3*i+2,
                     .normal_idx = 3*i+1,
                     .sign = 1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-10);
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
             constraint_data = {
                     .idx = 3*i+2,
                     .normal_idx = 3*i+1,
                     .sign = -1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-10);
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
         }
 
         nlopt_set_xtol_rel(opt, 1e-8);
         double x[size];
-        for (auto state : x){
+        for (auto& state : x){
             state = 0;
         }
 
@@ -227,11 +233,32 @@ void SolidBody::step()
             f(i) = x[i];
         }
 
-//        std::cout << "f = " << f << std::endl;
+        std::cout << "f = " << std::endl << f << std::endl;
+        std::cout << "v_minus = " << std::endl << v_minus << std::endl;
+        std::cout << "v_hat = " << std::endl << v_hat << std::endl;
 
         vel_ = v_hat + M_.inverse()*Jc.transpose()*f;
     } else {
         vel_ = v_hat;
     }
     updatePosition();
+}
+
+void SolidBody::simpleStep()
+{
+    auto Jc1 = getContactJacobian(0);
+    auto Jc2 = getContactJacobian(2);
+    vel_(1) = 1.0;
+    std::cout << "Contact vel 0: " << std::endl << Jc1 * vel_ << std::endl;
+//    std::cout << "Contact vel 2: " << std::endl << Jc2 * vel_ << std::endl;
+
+    updatePosition();
+}
+
+void SolidBody::print()
+{
+    for (int i = 0; i<vertices_.size(); ++i) {
+        auto Jc = getContactJacobian(i);
+        std::cout << "Jc(" << i << "): " << std::endl << Jc << std::endl;
+    }
 }

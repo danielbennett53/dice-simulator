@@ -13,6 +13,9 @@ public:
             std::vector<std::vector<unsigned int>> faces,
             std::shared_ptr<Mesh> mesh);
     void step();
+    void simpleStep();
+    void print();
+    void updatePosition();
     Eigen::Vector3d COM_;
     Eigen::Quaterniond orientation_;
     Eigen::Matrix<double, 6, 1> vel_;
@@ -23,7 +26,7 @@ private:
     // Vector of vertex numbers that make up a specific face
     std::vector<std::vector<unsigned int>> faces_;
 
-    double Ts_ = 0.0001;
+    double Ts_ = 0.001;
 
 
 
@@ -31,8 +34,8 @@ private:
 
     Eigen::Matrix<double, 6, 6> M_;
 
-    Eigen::Matrix<double, Eigen::Dynamic, 6> getContactJacobian();
+    Eigen::Matrix<double, 3, 6> getContactJacobian(int idx);
 
-    void updatePosition();
+
 };
 
