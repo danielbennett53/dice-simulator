@@ -113,8 +113,8 @@ void SolidBody::step()
 {
     Eigen::Matrix<double, Eigen::Dynamic, 6> Jc;
     Eigen::Matrix<double, Eigen::Dynamic, 1> x_err;
-    double e = 0.001;
-    double tau = 0.01;
+    double e = 0.2;
+    double tau = 0.0017;
     double B = 2*(1+e)*(1/tau);
     double K = (1+e)/(tau*tau);
     long nrows = 0;
@@ -186,33 +186,33 @@ void SolidBody::step()
         nlopt_set_min_objective(opt, myfunc, &prob_data);
 
         auto n_contacts = (size/3);
-        friction_constraint_data constraint_data;
 
         for (int i=0;i<n_contacts;++i) {
-            constraint_data = {
+            friction_constraint_data constraint_data[4];
+            constraint_data[0] = {
                     .idx = 3*i,
                     .normal_idx = 3*i+1,
                     .sign = 1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
-            constraint_data = {
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data[0], 1e-10);
+            constraint_data[1] = {
                     .idx = 3*i,
                     .normal_idx = 3*i+1,
                     .sign = -1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
-            constraint_data = {
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data[1], 1e-10);
+            constraint_data[2] = {
                     .idx = 3*i+2,
                     .normal_idx = 3*i+1,
                     .sign = 1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
-            constraint_data = {
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data[2], 1e-10);
+            constraint_data[3] = {
                     .idx = 3*i+2,
                     .normal_idx = 3*i+1,
                     .sign = -1
             };
-            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data, 1e-8);
+            nlopt_add_inequality_constraint(opt, friction_constraint, &constraint_data[3], 1e-10);
         }
 
         nlopt_set_xtol_rel(opt, 1e-8);
@@ -232,10 +232,6 @@ void SolidBody::step()
         for (int i=0;i<f.rows();++i) {
             f(i) = x[i];
         }
-
-        std::cout << "f = " << std::endl << f << std::endl;
-        std::cout << "v_minus = " << std::endl << v_minus << std::endl;
-        std::cout << "v_hat = " << std::endl << v_hat << std::endl;
 
         vel_ = v_hat + M_.inverse()*Jc.transpose()*f;
     } else {

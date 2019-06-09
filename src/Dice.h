@@ -27,4 +27,5 @@ namespace Dice {
 
     // Prototypes of different dice types
     extern const Die d6;
+    extern const Die d4;
 };

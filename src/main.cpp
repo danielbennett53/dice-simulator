@@ -49,19 +49,16 @@ int main()
     vis.meshes_.emplace_back(std::make_shared<Mesh>(floor_vertices, floor_indices, floor_texture, 0));
     auto die_mesh = Dice::generateMesh(Dice::d6, 1);
     vis.meshes_.emplace_back(die_mesh);
-    die_mesh->updateModelTF(Eigen::Vector3d(0, 5, 0), Eigen::Quaterniond(0,0,0,0));
-    die_mesh = Dice::generateMesh(Dice::d6, 1);
-    vis.meshes_.emplace_back(die_mesh);
     auto rigid_body = Dice::generateSolidBody(Dice::d6, die_mesh);
-
-    die_mesh->updateModelTF(Eigen::Vector3d(5, 5, 0), Eigen::Quaterniond(0,0,0,0));
     rigid_body->COM_ = Eigen::Vector3d(5, 10, 0);
-    rigid_body->orientation_ = Eigen::AngleAxisd(0.0, Eigen::Vector3d(0, 1, 0));
-    rigid_body->vel_ << 0, 0, 0, 0, 0, 0;
-
-    rigid_body->print();
+    rigid_body->vel_ << 1.0, 0, 2.0, 0, 10.0, -5.0;
     rigid_body->orientation_ = Eigen::AngleAxisd(1, Eigen::Vector3d(1, 1, 0));
-    rigid_body->print();
+
+    vis.meshes_.push_back(Dice::generateMesh(Dice::d4, 1));
+    auto rigid_body2 = Dice::generateSolidBody(Dice::d4, vis.meshes_[2]);
+    rigid_body2->COM_ = Eigen::Vector3d(0, 10, 0);
+    rigid_body2->vel_ << 1.0, 2.0, 0.0, 7.0, 10.0, 0.0;
+    rigid_body2->orientation_ = Eigen::AngleAxisd(1, Eigen::Vector3d(0, 1, 1));
 
 
     while(!glfwWindowShouldClose(vis.window_))
@@ -69,10 +66,9 @@ int main()
 //        auto time = (float)glfwGetTime();
         for (int i=0;i<20;++i) {
             rigid_body->step();
-//            rigid_body->simpleStep();
+            rigid_body2->step();
         }
-        usleep(10);
-//        rigid_body->updatePosition();
+        usleep(10000);
         vis.draw();
     }
     return 0;

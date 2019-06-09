@@ -2,6 +2,7 @@
 #include "Dice.h"
 #include <vector>
 #include <memory>
+#include <cmath>
 #include "Mesh.h"
 #include <iostream>
 #include "SolidBody.h"
@@ -29,8 +30,13 @@ namespace Dice {
             }
             // Get offset of current face in vertex vector
             auto offset = vertices.size() - face.indices.size();
-            // Generate indices for two triangles per face
-            std::vector<unsigned int> triIndices{0, 1, 2, 1, 2, 3};
+            // Generate indices for two triangles per face if square
+            std::vector<unsigned int> triIndices;
+            if (face.indices.size() == 3)
+                triIndices = {0, 1, 2};
+            else
+                triIndices = {0, 1, 2, 1, 2, 3};
+
             for (auto idx : triIndices) {
                 indices.emplace_back(offset + idx);
             }
@@ -123,6 +129,47 @@ namespace Dice {
                                    {1.0f, 1.0f}},
                     .texture_file = PROJECT_DIR "/resources/square_6.png",
                     .color = {1.0f, 1.0f, 1.0f}},
+            }
+    };
+
+    const Die d4 = {
+            .vertices = { {-1.0f, -(2.0f/12.0f)*std::sqrt(6.0f), -std::sqrt(3.0f)/3.0f},
+                          { 1.0f, -(2.0f/12.0f)*std::sqrt(6.0f), -std::sqrt(3.0f)/3.0f},
+                          { 0.0f, -(2.0f/12.0f)*std::sqrt(6.0f),  2.0f*std::sqrt(3.0f)/3.0f},
+                          { 0.0f,  (0.5f)*std::sqrt(6.0f),       0.0f} },
+
+            .faces = {
+                    { .num = 0,
+                      .indices = {0, 1, 2},
+                      .tex_coords = {{0.0f, 0.0f},
+                                     {1.0f, 0.0f},
+                                     {0.5f, -std::sqrt(3.0f)/2.0f}},
+                      .texture_file = PROJECT_DIR "/resources/d4_1.png",
+                      .color = {1.0f, 1.0f, 1.0f}},
+
+                    { .num = 1,
+                      .indices = {0, 2, 3},
+                      .tex_coords = {{0.0f, 0.0f},
+                                     {1.0f, 0.0f},
+                                     {0.5f, -std::sqrt(3.0f)/2.0f}},
+                      .texture_file = PROJECT_DIR "/resources/d4_2.png",
+                      .color = {1.0f, 1.0f, 1.0f}},
+
+                    { .num = 2,
+                      .indices = {2, 1, 3},
+                      .tex_coords = {{0.0f, 0.0f},
+                                     {1.0f, 0.0f},
+                                     {0.5f, -std::sqrt(3.0f)/2.0f}},
+                      .texture_file = PROJECT_DIR "/resources/d4_3.png",
+                      .color = {1.0f, 1.0f, 1.0f}},
+
+                    { .num = 3,
+                      .indices = {1, 0, 3},
+                      .tex_coords = {{0.0f, 0.0f},
+                                     {1.0f, 0.0f},
+                                     {0.5f, -std::sqrt(3.0f)/2.0f}},
+                      .texture_file = PROJECT_DIR "/resources/d4_4.png",
+                      .color = {1.0f, 1.0f, 1.0f}},
             }
     };
 };
