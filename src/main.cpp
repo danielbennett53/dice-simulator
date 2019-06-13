@@ -13,9 +13,9 @@
 #include "SolidBody.h"
 #include <unistd.h>
 
+
 int main()
 {
-
     Visualizer vis(1024, 1500);
 
     // Initialize floor vertices
@@ -56,7 +56,7 @@ int main()
 
     vis.meshes_.push_back(Dice::generateMesh(Dice::d4, 1));
     auto rigid_body2 = Dice::generateSolidBody(Dice::d4, vis.meshes_[2]);
-    rigid_body2->COM_ = Eigen::Vector3d(0, 10, 0);
+    rigid_body2->COM_ = Eigen::Vector3d(-10, 10, 0);
     rigid_body2->vel_ << 1.0, 2.0, 0.0, 7.0, 10.0, 0.0;
     rigid_body2->orientation_ = Eigen::AngleAxisd(1, Eigen::Vector3d(0, 1, 1));
 
