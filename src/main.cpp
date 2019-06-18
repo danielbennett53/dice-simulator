@@ -18,7 +18,21 @@ int main()
 {
 
     Visualizer vis(1024, 1500);
+    Eigen::Vector3d position;
+    Eigen::Quaterniond orientation;
+    orientation = Eigen::AngleAxisd(1.5, Eigen::Vector3d(1, 0, 1));
+    orientation.normalize();
+    position << 1.0, 1.0, 1.0;
+    vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/floor.obj"));
+    vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/d6.obj"));
+    vis.meshes_[1]->updateModelTF(position, orientation);
     vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/d4.obj"));
+    position << 1.0, 1.0, 5.0;
+    vis.meshes_[2]->updateModelTF(position, orientation);
+    vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/d20.obj"));
+    position << 5.0, 1.0, 0.0;
+    vis.meshes_[3]->updateModelTF(position, orientation);
+
     vis.draw();
 //
 //    // Initialize floor vertices

@@ -77,7 +77,7 @@ Mesh::Mesh(const std::string& objFile)
             // Get name of mtl file
             std::string filename;
             std::string ignore;
-            ls >> ignore >> filename;
+            ls >> filename;
 
             // Split input filename to get filepath
             size_t found;
@@ -105,13 +105,10 @@ Mesh::Mesh(const std::string& objFile)
                     break;
                 }
             }
-
             mtlfd.close();
         }
     }
     fd.close();
-    for (auto index : indices_)
-        std::cout << index << std::endl;
 
     setupMesh();
     loadTextures(textureFilepath, 0);
@@ -137,12 +134,12 @@ void Mesh::setupMesh()
                  &indices_[0], GL_STATIC_DRAW);
 
     // Define position attribute
-    glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+    glEnableVertexAttribArray(0);
     // Define texture coordinates attribute
-    glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                           (void*)offsetof(Vertex, texCoords));
+    glEnableVertexAttribArray(1);
 
     // Unbind vertex array
     glBindVertexArray(0);
@@ -155,8 +152,10 @@ void Mesh::setupMesh()
 void Mesh::loadTextures(const std::string& filepath, unsigned int textureUnit)
 {
     // Exit if no textures
-    if (filepath.empty())
+    if (filepath.empty()) {
+        std::cout << "No texture file found" << std::endl;
         return;
+    }
 
     // Activate texture
     glActiveTexture(GL_TEXTURE0);
@@ -167,22 +166,22 @@ void Mesh::loadTextures(const std::string& filepath, unsigned int textureUnit)
 
     // Load the first image to get size
     int w, h, nrChannels;
-    stbi_load(filepath.c_str(), &w, &h, &nrChannels, 0);
-
-    // Initialize the texture array
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA,
-                 GL_UNSIGNED_INT, nullptr);
 
     // Set the texture wrapping/filtering options
-//    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    // Iterate through filepaths
+    // Load texture data
+    stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(filepath.c_str(), &w, &h, &nrChannels, 0);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        std::cout << "Failed to load texture" << std::endl;
+    }
 
     // Unbind texture and free data
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -193,7 +192,7 @@ void Mesh::loadTextures(const std::string& filepath, unsigned int textureUnit)
 void Mesh::draw(Shader shader)
 {
     // Activate texture and bind it
-    shader.setInt("tex", GL_TEXTURE0);
+    shader.setInt("tex", 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texId_);
 
