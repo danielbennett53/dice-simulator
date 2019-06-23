@@ -45,5 +45,7 @@ private:
     void setupMesh();
     // Load textures
     void loadTextures(const std::string& filepath, unsigned int textureUnit);
+
+    void calculatePhysicalProperties();
 };
 

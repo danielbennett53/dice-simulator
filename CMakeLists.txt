@@ -11,8 +11,8 @@ find_package(OpenGL REQUIRED)
 find_package(glfw3 3.2 REQUIRED)
 
 add_executable(dice-simulator src/main.cpp src/glad.c
-                src/Visualizer.cpp src/shaders/Shader.cpp
-                src/Mesh.cpp src/Dice.cpp src/SolidBody.cpp)
+        src/Environment.cpp src/shaders/Shader.cpp
+                src/Mesh.cpp src/SolidBody.cpp)
 
 target_include_directories(dice-simulator PRIVATE "include")
 target_link_libraries(dice-simulator GL X11 pthread Xrandr Xi dl glfw nlopt)

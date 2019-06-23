@@ -1,20 +1,17 @@
 #pragma once
 
 #include <vector>
-#include <Eigen/Geometry>
 #include <memory>
+#include <Eigen/Geometry>
 #include "Mesh.h"
 
 
 class SolidBody {
 
 public:
-    SolidBody(std::vector<Eigen::Vector3d> vertices,
-            std::vector<std::vector<unsigned int>> faces,
-            std::shared_ptr<Mesh> mesh);
+    SolidBody(Mesh mesh, double density = 1.0);
+    SolidBody(const std::string& objFile, double density = 1.0);
     void step();
-    void simpleStep();
-    void print();
     void updatePosition();
     Eigen::Vector3d COM_;
     Eigen::Quaterniond orientation_;
@@ -28,14 +25,11 @@ private:
 
     double Ts_ = 0.001;
 
-
-
     std::shared_ptr<Mesh> mesh_;
 
     Eigen::Matrix<double, 6, 6> M_;
+    Eigen::Vector3d COM_offset_;
 
-    Eigen::Matrix<double, 3, 6> getContactJacobian(int idx);
-
-
+    void calculatePhysicalProperties(float density);
 };
 

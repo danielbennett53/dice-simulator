@@ -1,4 +1,4 @@
-#include "Visualizer.h"
+#include "Environment.h"
 #include <GLFW/glfw3.h>
 #include "glad/glad.h"
 #include <iostream>
@@ -8,7 +8,7 @@
 #include "glm/gtc/type_ptr.hpp"
 
 
-Visualizer::Visualizer(unsigned int height, unsigned int width)
+Environment::Environment(unsigned int height, unsigned int width)
 {
     // Initialize GLFW window
     glfwInit();
@@ -54,7 +54,7 @@ Visualizer::Visualizer(unsigned int height, unsigned int width)
 }
 
 
-void Visualizer::draw()
+void Environment::update()
 {
     this->processInput();
     glClearColor(0.2f, 0.3f, 0.7f, 1.0f);
@@ -71,11 +71,39 @@ void Visualizer::draw()
         mesh->draw(*shader_);
     }
 
+    for (auto &body : bodies_) {
+        body.step();
+    }
+
     glfwSwapBuffers(window_);
     glfwPollEvents();
 }
 
-void Visualizer::processInput()
+
+void Environment::addSolidBody(SolidBody body)
+{
+    bodies_.push_back(std::move(body));
+}
+
+
+void Environment::addMesh(Mesh mesh)
+{
+    meshes_.push_back(std::make_shared<Mesh>(mesh));
+}
+
+
+void Environment::addMesh(std::string objFile)
+{
+    meshes_.emplace_back(objFile);
+}
+
+SolidBody& Environment::getSolidBody(int idx)
+{
+    return &bodies_[idx];
+}
+
+
+void Environment::processInput()
 {
     // Exit when escape is pressed
     if (glfwGetKey(window_, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -89,7 +117,7 @@ void Visualizer::processInput()
     this->updateCameraView(mouse_x, mouse_y);
 }
 
-void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
+void Environment::updateCameraView(double cursorPosX, double cursorPosY)
 {
     // Store last position of mouse
     static double lastPosX, lastPosY = 0;
@@ -157,18 +185,18 @@ void Visualizer::updateCameraView(double cursorPosX, double cursorPosY)
     lastPosY = cursorPosY;
 }
 
-void Visualizer::windowResizeCallback(GLFWwindow* window, int width, int height)
+void Environment::windowResizeCallback(GLFWwindow* window, int width, int height)
 {
-    auto vis = (Visualizer*) glfwGetWindowUserPointer(window);
+    auto vis = (Environment*) glfwGetWindowUserPointer(window);
     vis->win_height_ = (unsigned int) height;
     vis->win_width_ = (unsigned int) width;
     glViewport(0, 0, width, height);
 }
 
-void Visualizer::scrollCallback(GLFWwindow* window, double x, double y)
+void Environment::scrollCallback(GLFWwindow* window, double x, double y)
 {
     (void) x;
-    auto vis = (Visualizer*) glfwGetWindowUserPointer(window);
+    auto vis = (Environment*) glfwGetWindowUserPointer(window);
     vis->cam_radius_ -= y;
 }
 

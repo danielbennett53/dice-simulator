@@ -2,7 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <nlopt.hpp>
 #include <math.h>
-#include "Visualizer.h"
+#include "Environment.h"
 #include <vector>
 #include "Mesh.h"
 #include <memory>
@@ -17,23 +17,23 @@
 int main()
 {
 
-    Visualizer vis(1024, 1500);
+    Environment env(1024, 1500);
+    env.addMesh(PROJECT_DIR "/resources/floor.obj");
+
+    Mesh d4 = Mesh(PROJECT_DIR "/resources/d4.obj");
+    Mesh d6 = Mesh(PROJECT_DIR "/resources/d6.obj");
+    Mesh d20 = Mesh(PROJECT_DIR "/resources/d20.obj");
+
+    env.addSolidBody(SolidBody(d4));
     Eigen::Vector3d position;
     Eigen::Quaterniond orientation;
     orientation = Eigen::AngleAxisd(1.5, Eigen::Vector3d(1, 0, 1));
     orientation.normalize();
     position << 1.0, 1.0, 1.0;
-    vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/floor.obj"));
-    vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/d6.obj"));
-    vis.meshes_[1]->updateModelTF(position, orientation);
-    vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/d4.obj"));
-    position << 1.0, 1.0, 5.0;
-    vis.meshes_[2]->updateModelTF(position, orientation);
-    vis.meshes_.emplace_back(std::make_shared<Mesh>(PROJECT_DIR "/resources/d20.obj"));
-    position << 5.0, 1.0, 0.0;
-    vis.meshes_[3]->updateModelTF(position, orientation);
+    env.getSolidBody(0).COM_ = position;
+    env.getSolidBody(0).orientation_ = orientation;
 
-    vis.draw();
+    env.update();
 //
 //    // Initialize floor vertices
 //    std::vector<Vertex> floor_vertices = {
@@ -78,7 +78,7 @@ int main()
 //    rigid_body2->orientation_ = Eigen::AngleAxisd(1, Eigen::Vector3d(0, 1, 1));
 //
 //
-    while(!glfwWindowShouldClose(vis.window_))
+    while(!glfwWindowShouldClose(env.window_))
     {
 ////        auto time = (float)glfwGetTime();
 //        for (int i=0;i<20;++i) {
@@ -86,7 +86,7 @@ int main()
 //            rigid_body2->step();
 //        }
 //        usleep(10000);
-        vis.draw();
+        env.update();
     }
     return 0;
 }

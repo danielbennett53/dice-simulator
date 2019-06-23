@@ -14,7 +14,7 @@ typedef struct {
     int sign;
 } friction_constraint_data;
 
-double myfunc(unsigned int n, const double *x, double *grad, void *my_func_data)
+double contact_cost_fcn(unsigned int n, const double *x, double *grad, void *my_func_data)
 {
     auto *data = (contact_problem_data *) my_func_data;
     Eigen::VectorXd X(n);
@@ -46,17 +46,11 @@ double friction_constraint(unsigned int n, const double *x, double *grad, void *
     return (x[data->idx]*data->sign - mu*x[data->normal_idx]);
 }
 
-SolidBody::SolidBody(std::vector<Eigen::Vector3d> vertices,
-                     std::vector<std::vector<unsigned int>> faces,
-                     std::shared_ptr<Mesh> mesh)
+SolidBody::SolidBody(Mesh mesh, double density)
 {
 
-    double m = 0.1; //kg
-    M_.topLeftCorner(3,3) = (1.0/6.0) * m * 4.0 * Eigen::Matrix3d::Identity();
-    M_.bottomRightCorner(3,3) = m * Eigen::Matrix3d::Identity();
-    mesh_ = std::move(mesh);
-    vertices_ = std::move(vertices);
-    faces_ = std::move(faces);
+    mesh_ = std::make_shared<Mesh>(mesh);
+    calculatePhysicalProperties(density);
 }
 
 
@@ -74,40 +68,6 @@ void SolidBody::updatePosition()
     mesh_->updateModelTF(COM_, orientation_);
 }
 
-
-Eigen::Matrix<double, 3, 6> SolidBody::getContactJacobian(int idx)
-{
-    Eigen::Matrix<double, 3, 6> Jc;
-
-    Eigen::Quaterniond v_q;
-    v_q.vec() = vertices_[idx];
-    v_q.w() = 0;
-    auto tfVertex_q = orientation_ * v_q * orientation_.inverse();
-    auto tfVertex = tfVertex_q.vec();
-    auto vertex_global = tfVertex + COM_;
-
-    Eigen::Matrix3d r_cross;
-    r_cross << 0, -tfVertex(2), tfVertex(1),
-            tfVertex(2), 0, -tfVertex(0),
-            -tfVertex(1), tfVertex(0), 0;
-    Jc.bottomLeftCorner(3,3) = -r_cross;
-    Jc.bottomRightCorner(3,3) = Eigen::Matrix3d::Identity();
-
-    return Jc;
-}
-
-Eigen::VectorXd clamp(Eigen::VectorXd in, double tol)
-{
-    Eigen::VectorXd out(in.rows());
-    for (int i=0; i<in.rows(); ++i) {
-        if (fabs(in(i)) < tol) {
-            out(i) = 0.0;
-        } else {
-            out(i) = in(i);
-        }
-    }
-    return out;
-}
 
 void SolidBody::step()
 {
@@ -183,7 +143,7 @@ void SolidBody::step()
         nlopt_opt opt;
         opt = nlopt_create(NLOPT_LD_SLSQP, size);
         nlopt_set_lower_bounds(opt, lb);
-        nlopt_set_min_objective(opt, myfunc, &prob_data);
+        nlopt_set_min_objective(opt, contact_cost_fcn, &prob_data);
 
         auto n_contacts = (size/3);
 
@@ -240,21 +200,77 @@ void SolidBody::step()
     updatePosition();
 }
 
-void SolidBody::simpleStep()
+void SolidBody::calculatePhysicalProperties(float density)
 {
-    auto Jc1 = getContactJacobian(0);
-    auto Jc2 = getContactJacobian(2);
-    vel_(1) = 1.0;
-    std::cout << "Contact vel 0: " << std::endl << Jc1 * vel_ << std::endl;
-//    std::cout << "Contact vel 2: " << std::endl << Jc2 * vel_ << std::endl;
+    // Calculate centroid and volume
+    float volume = 0.0;
+    auto centroid = glm::vec3(0.0, 0.0, 0.0);
 
-    updatePosition();
-}
+    // Pick first vertex as starting point to make sure it is within the mesh
+    glm::vec3 refPoint = mesh_->vertices_[0].position;
 
-void SolidBody::print()
-{
-    for (int i = 0; i<vertices_.size(); ++i) {
-        auto Jc = getContactJacobian(i);
-        std::cout << "Jc(" << i << "): " << std::endl << Jc << std::endl;
+    // Calculate volume and centroid
+    for (const auto& face : mesh_->faces_) {
+        glm::vec3 a = mesh_->vertices_[face.meshIndices[0]].position;
+        glm::vec3 b = mesh_->vertices_[face.meshIndices[1]].position;
+        glm::vec3 c = mesh_->vertices_[face.meshIndices[2]].position;
+
+        float temp_volume = fabs(glm::dot(glm::cross(a - refPoint, b - refPoint),
+                c - refPoint)) / 6.0;
+        auto temp_centroid = glm::vec3(a[0] + b[0] + c[0] + refPoint[0],
+                                       a[1] + b[1] + c[1] + refPoint[1],
+                                       a[2] + b[2] + c[2] + refPoint[2]) * 0.25f;
+        centroid = volume * centroid + temp_volume * temp_centroid;
+        volume += temp_volume;
+        centroid = centroid / volume;
     }
+
+    COM_offset_ << centroid[0], centroid[1], centroid[2];
+
+    float Ia = 0.0;
+    float Ib = 0.0;
+    float Ic = 0.0;
+    float Ia_p = 0.0;
+    float Ib_p = 0.0;
+    float Ic_p = 0.0;
+
+    // Calculate intertia tensor
+    for (const auto& face : mesh_->faces_) {
+        glm::vec3 a = mesh_->vertices_[face.meshIndices[0]].position - centroid[0];
+        glm::vec3 b = mesh_->vertices_[face.meshIndices[1]].position - centroid[1];
+        glm::vec3 c = mesh_->vertices_[face.meshIndices[2]].position - centroid[2];
+
+        float vol = fabs(glm::dot(glm::cross(a, b), c)) / 6.0f;
+        Ia += density * vol *
+                (a[1]*a[1] + a[1]*b[1] + b[1]*b[1] + a[1]*c[1] + b[1]*c[1] +
+                 c[1]*c[1] + a[2]*a[2] + a[2]*b[2] + b[2]*b[2] + a[2]*c[2] +
+                 b[2]*c[2] + c[2]*c[2]) / 10.0f;
+        Ib += density * vol *
+                (a[0]*a[0] + a[0]*b[0] + b[0]*b[0] + a[0]*c[0] + b[0]*c[0] +
+                 c[0]*c[0] + a[2]*a[2] + a[2]*b[2] + b[2]*b[2] + a[2]*c[2] +
+                 b[2]*c[2] + c[2]*c[2]) / 10.0f;
+        Ic += density * vol *
+                (a[0]*a[0] + a[0]*b[0] + b[0]*b[0] + a[0]*c[0] + b[0]*c[0] +
+                 c[0]*c[0] + a[1]*a[1] + a[1]*b[1] + b[1]*b[1] + a[1]*c[1] +
+                 b[1]*c[1] + c[1]*c[1]) / 10.0f;
+        Ia_p += density * vol *
+                (2*a[1]*a[2] + b[1]*a[2] + c[1]*a[2] + a[1]*b[2] +
+                 2*b[1]*b[2] + c[1]*b[2] + a[1]*c[2] + b[1]*c[2] +
+                 2*c[1]*c[2]) / 20.0f;
+        Ib_p += density * vol *
+                (2*a[0]*a[2] + b[0]*a[2] + c[0]*a[2] + a[0]*b[2] +
+                 2*b[0]*b[2] + c[0]*b[2] + a[0]*c[2] + b[0]*c[2] +
+                 2*c[0]*c[2]) / 20.0f;
+        Ic_p += density * vol *
+                (2*a[0]*a[1] + b[0]*a[1] + c[0]*a[1] + a[0]*b[1] +
+                 2*b[0]*b[1] + c[0]*b[1] + a[0]*c[1] + b[0]*c[1] +
+                 2*c[0]*c[1]) / 20.0f;
+    }
+
+    Eigen::Matrix3d I;
+    I << Ia, -Ib_p, -Ic_p,
+        -Ib_p, Ib, -Ia_p,
+        -Ic_p, -Ia_p, Ic;
+    M_.topLeftCorner(3,3) = I;
+    M_.bottomRightCorner(3,3) = density * volume * Eigen::Matrix3d::Identity();
 }
