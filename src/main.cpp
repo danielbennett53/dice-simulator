@@ -27,7 +27,7 @@ int main()
     env.addSolidBody(SolidBody(d6));
     Eigen::Vector3d position;
     Eigen::Quaterniond orientation;
-    orientation = Eigen::AngleAxisd(2.7, Eigen::Vector3d(1, 0, 1));
+    orientation = Eigen::AngleAxisd(1.5, Eigen::Vector3d(1, 0, 1));
     orientation.normalize();
     position << 1.0, 10, 1.0;
     env.getSolidBody(0).COM_ = position;

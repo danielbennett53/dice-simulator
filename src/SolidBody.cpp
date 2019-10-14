@@ -65,7 +65,7 @@ void SolidBody::updatePosition()
 
     // Translate center of mass
     COM_ += vel_.tail(3) * Ts_;
-    mesh_->updateModelTF(COM_, orientation_);
+    mesh_->updateModelTF(COM_ + COM_offset_, orientation_);
 }
 
 
@@ -91,7 +91,7 @@ void SolidBody::step()
         v_q.w() = 0;
         Eigen::Quaterniond tfVertex_q = orientation_ * v_q * orientation_.inverse();
         Eigen::Vector3d tfVertex = tfVertex_q.vec();
-        Eigen::Vector3d vertex_global = tfVertex + COM_;
+        Eigen::Vector3d vertex_global = tfVertex + COM_ + COM_offset_;
 
         if (vertex_global(1) <= 0) {
             nrows += 3;
