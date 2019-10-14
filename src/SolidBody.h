@@ -2,17 +2,18 @@
 
 #include <vector>
 #include <memory>
-#include <Eigen/Geometry>
+#include <eigen3/Eigen/Geometry>
 #include "Mesh.h"
 
 
 class SolidBody {
 
 public:
-    SolidBody(Mesh mesh, double density = 1.0);
+    explicit SolidBody(Mesh &mesh, double density = 1.0);
     SolidBody(const std::string& objFile, double density = 1.0);
     void step();
     void updatePosition();
+    void draw(Shader shader);
     Eigen::Vector3d COM_;
     Eigen::Quaterniond orientation_;
     Eigen::Matrix<double, 6, 1> vel_;

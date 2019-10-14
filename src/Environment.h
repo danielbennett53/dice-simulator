@@ -20,7 +20,7 @@ public:
 
     // Add mesh to visualizer
     void addMesh(Mesh mesh);
-    void addMesh(std::string objFile);
+    void addMesh(const std::string objFile);
 
     // Update window
     void update();
@@ -51,5 +51,5 @@ private:
     std::vector<SolidBody> bodies_;
 
     // List of meshes not subject to physics
-    std::vector<std::shared_ptr<Mesh>> meshes_;
+    std::vector<Mesh> meshes_;
 };

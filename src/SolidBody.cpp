@@ -46,7 +46,7 @@ double friction_constraint(unsigned int n, const double *x, double *grad, void *
     return (x[data->idx]*data->sign - mu*x[data->normal_idx]);
 }
 
-SolidBody::SolidBody(Mesh mesh, double density)
+SolidBody::SolidBody(Mesh &mesh, double density)
 {
 
     mesh_ = std::make_shared<Mesh>(mesh);
@@ -69,6 +69,12 @@ void SolidBody::updatePosition()
 }
 
 
+void SolidBody::draw(Shader shader)
+{
+    mesh_->draw(shader);
+}
+
+
 void SolidBody::step()
 {
     Eigen::Matrix<double, Eigen::Dynamic, 6> Jc;
@@ -79,9 +85,9 @@ void SolidBody::step()
     double K = (1+e)/(tau*tau);
     long nrows = 0;
 
-    for (const auto &vertex : vertices_) {
+    for (const auto &vertex : mesh_->vertices_) {
         Eigen::Quaterniond v_q;
-        v_q.vec() = vertex;
+        v_q.vec() << vertex.position[0], vertex.position[1], vertex.position[2];
         v_q.w() = 0;
         Eigen::Quaterniond tfVertex_q = orientation_ * v_q * orientation_.inverse();
         Eigen::Vector3d tfVertex = tfVertex_q.vec();
@@ -220,9 +226,13 @@ void SolidBody::calculatePhysicalProperties(float density)
         auto temp_centroid = glm::vec3(a[0] + b[0] + c[0] + refPoint[0],
                                        a[1] + b[1] + c[1] + refPoint[1],
                                        a[2] + b[2] + c[2] + refPoint[2]) * 0.25f;
-        centroid = volume * centroid + temp_volume * temp_centroid;
-        volume += temp_volume;
-        centroid = centroid / volume;
+
+        // update centroid if volume of new segment is nonzero
+        if (temp_volume > 0) {
+            centroid = volume * centroid + temp_volume * temp_centroid;
+            volume += temp_volume;
+            centroid = centroid / volume;
+        }
     }
 
     COM_offset_ << centroid[0], centroid[1], centroid[2];

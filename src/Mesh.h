@@ -4,7 +4,7 @@
 #include "shaders/Shader.h"
 #include <string>
 #include <vector>
-#include <Eigen/Geometry>
+#include <eigen3/Eigen/Geometry>
 
 
 typedef struct  {
@@ -26,7 +26,7 @@ public:
     std::vector<Face> faces_;
 
     // Constructor for glm inputs
-    Mesh(const std::string& objFile);
+    explicit Mesh(const std::string& objFile);
 
     // Draw mesh
     void draw(Shader shader);

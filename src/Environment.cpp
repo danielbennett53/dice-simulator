@@ -67,12 +67,13 @@ void Environment::update()
     shader_->setMat4f("view", cam_view_);
     shader_->setMat4f("projection", projection);
 
-    for (const auto &mesh : meshes_) {
-        mesh->draw(*shader_);
+    for (auto &mesh : meshes_) {
+        mesh.draw(*shader_);
     }
 
     for (auto &body : bodies_) {
         body.step();
+        body.draw(*shader_);
     }
 
     glfwSwapBuffers(window_);
@@ -88,18 +89,18 @@ void Environment::addSolidBody(SolidBody body)
 
 void Environment::addMesh(Mesh mesh)
 {
-    meshes_.push_back(std::make_shared<Mesh>(mesh));
+    meshes_.push_back(std::move(mesh));
 }
 
 
-void Environment::addMesh(std::string objFile)
+void Environment::addMesh(const std::string objFile)
 {
     meshes_.emplace_back(objFile);
 }
 
 SolidBody& Environment::getSolidBody(int idx)
 {
-    return &bodies_[idx];
+    return bodies_[idx];
 }
 
 
