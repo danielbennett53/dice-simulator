@@ -2,7 +2,7 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += c++11
+CONFIG += c++14
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -18,11 +18,19 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     DiceVisualizer.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+   # ../shaders/fragment.glsl \
+   # ../shaders/vertex.glsl \
+    ../Mesh.cpp \
+    ../SolidBody.cpp
 
 HEADERS += \
     DiceVisualizer.h \
-    mainwindow.h
+    mainwindow.h \
+    ../Mesh.h \
+    ../SolidBody.h
+
+LIBS += -lnlopt
 
 FORMS += \
     mainwindow.ui

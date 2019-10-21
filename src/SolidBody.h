@@ -9,14 +9,14 @@
 class SolidBody {
 
 public:
-    explicit SolidBody(Mesh &mesh, double density = 1.0);
+    explicit SolidBody(Mesh::meshType mesh_idx, double density = 1.0);
     SolidBody(const std::string& objFile, double density = 1.0);
     void step();
     void updatePosition();
-    void draw(Shader shader);
-    Eigen::Vector3d COM_;
-    Eigen::Quaterniond orientation_;
+
+    Eigen::Transform<double, 3, Eigen::Affine> tf_;
     Eigen::Matrix<double, 6, 1> vel_;
+    Mesh::meshType mesh_idx_;
 
 private:
     // Vertices defined relative to COM
@@ -26,7 +26,8 @@ private:
 
     double Ts_ = 0.001;
 
-    std::shared_ptr<Mesh> mesh_;
+    Eigen::Vector3d COM_;
+    Eigen::Quaterniond orientation_;
 
     Eigen::Matrix<double, 6, 6> M_;
     Eigen::Vector3d COM_offset_;

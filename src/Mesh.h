@@ -1,51 +1,54 @@
 #pragma once
 
-#include "glm/glm.hpp"
-#include "shaders/Shader.h"
 #include <string>
 #include <vector>
+#include <map>
+#include <QOpenGLVertexArrayObject>
 #include <eigen3/Eigen/Geometry>
-
+#include <memory>
+#include <QOpenGLBuffer>
+#include <QOpenGLTexture>
 
 typedef struct  {
-    glm::vec3 position;
-    glm::vec2 texCoords;
+    Eigen::Vector3d position;
+    Eigen::Vector2d texCoords;
 } Vertex;
 
 typedef struct {
-    std::vector<unsigned int> meshIndices;
-    glm::vec3 normal;
+    std::vector<int> meshIndices;
+    Eigen::Vector3d normal;
 } Face;
 
 class Mesh
 {
-public:
+public:    
     // Define mesh vertices and textures
     std::vector<Vertex> vertices_;
-    std::vector<unsigned int> indices_;
+    std::vector<int> indices_;
     std::vector<Face> faces_;
 
-    // Constructor for glm inputs
-    explicit Mesh(const std::string& objFile);
-
-    // Draw mesh
-    void draw(Shader shader);
-
-    // Update orientation
-    void updateModelTF(const Eigen::Vector3d& position,
-                       const Eigen::Quaterniond& orientation);
-
-private:
     //  Render data
-    unsigned int VAO_, VBO_, EBO_, texId_;
-    // Orientation data
-    glm::mat4 modelTF_;
+    std::unique_ptr<QOpenGLVertexArrayObject> VAO_;
+    std::unique_ptr<QOpenGLBuffer> VBO_, EBO_;
+    std::unique_ptr<QOpenGLTexture> tex_;
 
-    // Initialize all mesh data
-    void setupMesh();
-    // Load textures
-    void loadTextures(const std::string& filepath, unsigned int textureUnit);
+    std::string textureFilepath_;
 
-    void calculatePhysicalProperties();
+    // Constructor
+    Mesh(const std::string& objFile);
+
+    // Copy constructor
+    Mesh(const Mesh &obj) {(void) obj;}
+
+    typedef enum {
+        FLOOR,
+        D4,
+        D6,
+        D20
+    } meshType;
+
+    // Global list of meshes
+    static std::map<Mesh::meshType, Mesh> options;
+    static std::map<Mesh::meshType, Mesh> initMeshes();
 };
 

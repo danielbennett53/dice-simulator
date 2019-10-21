@@ -1,9 +1,10 @@
 #pragma once
 
 #include <string>
+#include <QOpenGLFunctions>
 #include "glm/glm.hpp"
 
-class Shader
+class Shader : protected QOpenGLFunctions
 {
 public:
     // program ID

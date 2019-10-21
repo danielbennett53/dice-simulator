@@ -19,7 +19,11 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="0">
-     <widget class="DiceVisualizer" name="visualizer"/>
+     <widget class="DiceVisualizer" name="visualizer">
+      <property name="autoFillBackground">
+       <bool>true</bool>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>

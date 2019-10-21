@@ -1,6 +1,5 @@
 #include "Shader.h"
-#include <glad/glad.h>
-
+//#include <glad/glad.h>
 
 #include <fstream>
 #include <sstream>
@@ -39,6 +38,7 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
     }
     catch(std::ifstream::failure &e)
     {
+        (void) e;
         std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
     }
     const char* vShaderCode = vertexCode.c_str();
@@ -48,6 +48,8 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
     unsigned int vertex, fragment;
     int success;
     char infoLog[512];
+
+//    QOpenGLFunctions *f =
 
     // vertex Shader
     vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -59,7 +61,7 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
         std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    };
+    }
 
     // fragment Shader
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -71,7 +73,7 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
     {
         glGetShaderInfoLog(fragment, 512, nullptr, infoLog);
         std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    };
+    }
 
     // shader Program
     ID = glCreateProgram();
