@@ -1,6 +1,6 @@
-QT       += core gui
+QT       += core gui opengl
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
 CONFIG += c++14
 
@@ -19,8 +19,9 @@ SOURCES += \
     DiceVisualizer.cpp \
     main.cpp \
     mainwindow.cpp \
-   # ../shaders/fragment.glsl \
-   # ../shaders/vertex.glsl \
+    #../shaders/fragment.glsl \
+    #../shaders/vertex.glsl \
+    #../shaders/fragment_color.glsl \
     ../Mesh.cpp \
     ../SolidBody.cpp
 

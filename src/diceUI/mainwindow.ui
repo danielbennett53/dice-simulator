@@ -21,7 +21,7 @@
     <item row="0" column="0">
      <widget class="DiceVisualizer" name="visualizer">
       <property name="autoFillBackground">
-       <bool>true</bool>
+       <bool>false</bool>
       </property>
      </widget>
     </item>

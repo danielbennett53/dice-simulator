@@ -1,12 +1,12 @@
-#version 330 core
+#version 450 core
 
-out vec4 FragColor;
+out vec4 colorOut;
 //in vec3 ourColor;
-in vec2 texCoord;
+//in vec2 texCoord;
 
-uniform vec3 ourColor;
+//uniform vec3 ourColor;
 
 void main()
 {
-    FragColor = vec4(ourColor, 1.0f);
+    colorOut = vec4(1.0f, 0.0f, 0.0f, 1.0f);
 }

@@ -3,7 +3,8 @@
 #include <fstream>
 #include <map>
 
-Mesh::Mesh(const std::string& objFile)
+Mesh::Mesh(const std::string& objFile) : VAO_(), VBO_(QOpenGLBuffer::VertexBuffer),
+EBO_(QOpenGLBuffer::IndexBuffer)
 {
     std::ifstream fd;
     fd.open(objFile, std::ios::in);

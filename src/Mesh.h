@@ -28,9 +28,9 @@ public:
     std::vector<Face> faces_;
 
     //  Render data
-    std::unique_ptr<QOpenGLVertexArrayObject> VAO_;
-    std::unique_ptr<QOpenGLBuffer> VBO_, EBO_;
-    std::unique_ptr<QOpenGLTexture> tex_;
+    QOpenGLVertexArrayObject VAO_;
+    QOpenGLBuffer VBO_, EBO_;
+    std::shared_ptr<QOpenGLTexture> tex_;
 
     std::string textureFilepath_;
 
@@ -38,7 +38,8 @@ public:
     Mesh(const std::string& objFile);
 
     // Copy constructor
-    Mesh(const Mesh &obj) {(void) obj;}
+    Mesh(const Mesh &obj) : VAO_(), VBO_(QOpenGLBuffer::VertexBuffer),
+        EBO_(QOpenGLBuffer::IndexBuffer) {(void) obj;}
 
     typedef enum {
         FLOOR,
