@@ -153,7 +153,7 @@ void DiceVisualizer::loadTextures(Mesh &m)
         std::cout << "No texture file found" << std::endl;
         return;
     }
-    m.tex_ = std::make_shared<QOpenGLTexture>(QImage(QString::fromStdString(m.textureFilepath_)));
+    m.tex_ = std::make_shared<QOpenGLTexture>(QImage(QString::fromStdString(m.textureFilepath_)).mirrored());
     m.tex_->create();
     m.tex_->setWrapMode(QOpenGLTexture::Repeat);
     m.tex_->setMinificationFilter(QOpenGLTexture::Nearest);
