@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     DiceVisualizer.cpp \
+    Geometry.cpp \
     main.cpp \
     mainwindow.cpp \
     #../shaders/fragment.glsl \
@@ -27,6 +28,7 @@ SOURCES += \
 
 HEADERS += \
     DiceVisualizer.h \
+    Geometry.h \
     mainwindow.h \
     ../Mesh.h \
     ../SolidBody.h

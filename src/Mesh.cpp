@@ -1,4 +1,5 @@
 #include "Mesh.h"
+#include "Geometry.h"
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -103,6 +104,15 @@ EBO_(QOpenGLBuffer::IndexBuffer)
         }
     }
     fd.close();
+
+    for (const auto &v : vertices_) {
+        centroid_ += v.position;
+        for (int i = 0; i < 3; ++i) {
+            lowerLims_[i] = v.position[i] < lowerLims_[i] ? v.position[i] : lowerLims_[i];
+            upperLims_[i] = v.position[i] > upperLims_[i] ? v.position[i] : upperLims_[i];
+        }
+    }
+    centroid_ /= vertices_.size();
 }
 
 std::map<Mesh::meshType, Mesh> Mesh::initMeshes()
@@ -118,3 +128,32 @@ std::map<Mesh::meshType, Mesh> Mesh::initMeshes()
 
 std::map<Mesh::meshType, Mesh> Mesh::options = Mesh::initMeshes();
 
+bool Mesh::rayIntersectsMesh(const Eigen::Vector3d &rayOrigin,
+                             const Eigen::Vector3d &rayVector,
+                             Eigen::Vector3d &intersectionPoint)
+{
+    // See if ray gets close enough to possibly intersect
+    // Point of closest approach
+    double t = (centroid_.dot(rayVector) - rayOrigin.dot(rayVector)) / rayVector.dot(rayVector);
+    Eigen::Vector3d p = rayOrigin + t*rayVector;
+    if ( (p[0] > upperLims_[0]) || (p[1] > upperLims_[1]) || (p[2] > upperLims_[2]) ||
+         (p[0] < lowerLims_[0]) || (p[1] < lowerLims_[1]) || (p[2] < lowerLims_[2])) {
+        return false;
+    }
+
+    // Iterate through every face to find closest intersection
+    t = -1;
+    for (const auto &f : faces_) {
+        auto new_t = geometry::rayIntersectsTriangle(rayOrigin, rayVector, {vertices_[f.meshIndices[0]].position,
+                              vertices_[f.meshIndices[1]].position, vertices_[f.meshIndices[2]].position});
+        if ((new_t > 0) && ((t < 0) || (new_t < t))) {
+            t = new_t;
+        }
+    }
+
+    if (t < 0)
+        return false;
+
+    intersectionPoint = rayOrigin + t*rayVector;
+    return true;
+}

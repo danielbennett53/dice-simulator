@@ -46,10 +46,20 @@ double friction_constraint(unsigned int n, const double *x, double *grad, void *
     return (x[data->idx]*data->sign - mu*x[data->normal_idx]);
 }
 
+#define MESH Mesh::options.at(mesh_idx_)
+
 SolidBody::SolidBody(Mesh::meshType mesh_idx, double density)
 {
     mesh_idx_ = mesh_idx;
+    vel_ = Eigen::Matrix<double, 6, 1>::Zero();
     calculatePhysicalProperties(density);
+}
+
+void SolidBody::setPosition(Eigen::Transform<double, 3, Eigen::Affine> tf)
+{
+    tf_ = tf;
+    COM_ = tf.translation();
+    orientation_ = tf.rotation();
 }
 
 
@@ -64,9 +74,9 @@ void SolidBody::updatePosition()
 
     // Translate center of mass
     COM_ += vel_.tail(3) * Ts_;
-    tf_ = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-    tf_.rotate(orientation_);
+    tf_ = Eigen::Transform<double, 3, Eigen::Affine>::Identity();    
     tf_.translate(COM_ + COM_offset_);
+    tf_.rotate(orientation_);
 }
 
 void SolidBody::step()
@@ -79,9 +89,7 @@ void SolidBody::step()
     double K = (1+e)/(tau*tau);
     long nrows = 0;
 
-    auto mesh = std::shared_ptr<const Mesh>(&Mesh::options.at(mesh_idx_));
-
-    for (const auto &vertex : mesh->vertices_) {
+    for (const auto &vertex : MESH.vertices_) {
         Eigen::Quaterniond v_q;
         v_q.vec() << vertex.position[0], vertex.position[1], vertex.position[2];
         v_q.w() = 0;
@@ -202,22 +210,22 @@ void SolidBody::step()
     updatePosition();
 }
 
+
 void SolidBody::calculatePhysicalProperties(float density)
 {
     // Calculate centroid and volume
     float volume = 0.0;
     auto centroid = Eigen::Vector3d(0.0, 0.0, 0.0);
-
-    auto mesh = std::shared_ptr<Mesh>(&Mesh::options.at(mesh_idx_));
+    M_ = Eigen::Matrix<double, 6, 6>::Zero();
 
     // Pick first vertex as starting point to make sure it is within the mesh
-    auto refPoint = mesh->vertices_[0].position;
+    auto refPoint =MESH.vertices_[0].position;
 
     // Calculate volume and centroid
-    for (const auto& face : mesh->faces_) {
-        Eigen::Vector3d a = mesh->vertices_[face.meshIndices[0]].position;
-        Eigen::Vector3d b = mesh->vertices_[face.meshIndices[1]].position;
-        Eigen::Vector3d c = mesh->vertices_[face.meshIndices[2]].position;
+    for (const auto& face : MESH.faces_) {
+        Eigen::Vector3d a = MESH.vertices_[face.meshIndices[0]].position;
+        Eigen::Vector3d b = MESH.vertices_[face.meshIndices[1]].position;
+        Eigen::Vector3d c = MESH.vertices_[face.meshIndices[2]].position;
 
         double temp_volume = fabs(((a - refPoint).cross(b - refPoint)).dot(c - refPoint) / 6.0);
         auto temp_centroid = Eigen::Vector3d(a[0] + b[0] + c[0] + refPoint[0],
@@ -242,10 +250,10 @@ void SolidBody::calculatePhysicalProperties(float density)
     float Ic_p = 0.0;
 
     // Calculate intertia tensor
-    for (const auto& face : mesh->faces_) {
-        Eigen::Vector3d a = mesh->vertices_[face.meshIndices[0]].position - centroid;
-        Eigen::Vector3d b = mesh->vertices_[face.meshIndices[1]].position - centroid;
-        Eigen::Vector3d c = mesh->vertices_[face.meshIndices[2]].position - centroid;
+    for (const auto& face : MESH.faces_) {
+        Eigen::Vector3d a = MESH.vertices_[face.meshIndices[0]].position - centroid;
+        Eigen::Vector3d b = MESH.vertices_[face.meshIndices[1]].position - centroid;
+        Eigen::Vector3d c = MESH.vertices_[face.meshIndices[2]].position - centroid;
 
         double vol = fabs(a.cross(b).dot(c)) / 6.0f;
         Ia += density * vol *
@@ -281,3 +289,5 @@ void SolidBody::calculatePhysicalProperties(float density)
     M_.topLeftCorner(3,3) = I;
     M_.bottomRightCorner(3,3) = density * volume * Eigen::Matrix3d::Identity();
 }
+
+#undef MESH
