@@ -1,7 +1,5 @@
 #include "Geometry.h"
 #include <iostream>
-#include <stack>
-
 
 namespace geometry {
 
@@ -43,202 +41,109 @@ double rayIntersectsTriangle(const Eigen::Vector3d &rayOrigin,
 }
 
 
-// Calculates intersection points of triangle with line, assuming specific order of vectors
-// VTX: Triangle vertices
-// VV: Simplified projection of triangle vertices onto intersection line
-// D: Intersection line vector
-static inline void isect2(const std::vector<Eigen::Vector3d> &VTX, const Eigen::Vector3d &VV,
-                          const Eigen::Vector3d &D, Eigen::Vector2d &isect,
-                          std::vector<Eigen::Vector3d> &isectpoints)
+std::vector<Eigen::Vector3d> triTriIntersection3d(std::vector<Eigen::Vector3d> &A,
+                                                  std::vector<Eigen::Vector3d> &B)
 {
-    isectpoints.clear();
-    double tmp = D[0] / (D[0] - D[1]);
-    isect[0] = VV[0] + (VV[1] - VV[0]) * tmp;
-    Eigen::Vector3d diff = (VTX[1] - VTX[0]) * tmp;
-    isectpoints.push_back(diff + VTX[0]);
-    tmp = D[0] / (D[0] - D[2]);
-    isect[1] = VV[0] + (VV[2] - VV[0]) * tmp;
-    diff = (VTX[2] - VTX[0]) * tmp;
-    isectpoints.push_back(diff + VTX[0]);
+    // Algorithm comes from Devillers et al. Faster Triangle-Triangle Intersection Tests
+    // Olivier Devillers, Philippe Guigue.  Faster Triangle-Triangle Intersection Tests.  RR-4488, INRIA.2002. ￿inria-00072100￿
+    // https://hal.inria.fr/inria-00072100/document
+
+    // Output vector
+    std::vector<Eigen::Vector3d> iSectPoints;
+
+    // Check inputs are triangles
+    if ( (A.size() != 3) || (B.size() != 3))
+        return iSectPoints;
+
+    // Check both triangles to see if they intersect the other plane
+    std::vector<double> detsA;
+    for (const auto& s : A) {
+        Eigen::Matrix3d mat;
+        mat << B[0] - s, B[1] - s, B[2] - s;
+        detsA.push_back(mat.determinant());
+    }
+    const double Acheck1 = detsA[0] * detsA[1];
+    const double Acheck2 = detsA[0] * detsA[2];
+    if ( (Acheck1 >= 0.0) && (Acheck2 >= 0.0) )
+        return iSectPoints;
+
+    std::vector<double> detsB;
+    for (const auto& s : B) {
+        Eigen::Matrix3d mat;
+        mat << A[0] - s, A[1] - s, A[2] - s;
+        detsB.push_back(mat.determinant());
+    }
+    const double Bcheck1 = detsB[0] * detsB[1];
+    const double Bcheck2 = detsB[0] * detsB[2];
+    if ( (Bcheck1 >= 0.0) && (Bcheck2 >= 0.0) )
+        return iSectPoints;
+
+    // Reorder triangles. first index is the vertex that is alone on one side of the plane
+    int idx = 0;
+    if (Acheck1 > 0.0)
+        idx = 2;
+    else if (Acheck2 > 0.0)
+        idx = 1;
+
+    Eigen::Vector3d temp_vtx = A[idx];
+    A[idx] = A[0];
+    A[0] = temp_vtx;
+
+    idx = 0;
+    if (Bcheck1 > 0.0)
+        idx = 2;
+    else if (Bcheck2 > 0.0)
+        idx = 1;
+
+    temp_vtx = B[idx];
+    B[idx] = B[0];
+    B[0] = temp_vtx;
+
+    // Triangle plane normal vectors and other reused quantities
+    const Eigen::Vector3d n1 = (A[1] - A[0]).cross(A[2] - A[0]);
+    const Eigen::Vector3d n2 = (B[1] - B[0]).cross(B[2] - B[0]);
+    const Eigen::Vector3d L = n1.cross(n2);
+
+    const Eigen::Vector3d p2_p1 = B[0] - A[0];
+
+    // Find intersection between triangle vertices and line of intersection
+    // s and t parameterize triangle A, u and v parameterize triangle B
+    const double s = p2_p1.dot(n2) / (A[1] - A[0]).dot(n2);
+    const double t = p2_p1.dot(n2) / (A[2] - A[0]).dot(n2);
+    const double u = -p2_p1.dot(n1) / (B[1] - B[0]).dot(n1);
+    const double v = -p2_p1.dot(n1) / (B[2] - B[0]).dot(n1);
+
+    // Calculate intersection points and project them onto line segment
+    std::vector<Eigen::Vector3d> points = {
+        s * (A[1] - A[0]) + A[0],
+        t * (A[2] - A[0]) + A[0],
+        u * (B[1] - B[0]) + B[0],
+        v * (B[2] - B[0]) + B[0]
+    };
+
+    // Find the order of point indices based on the projection onto the intersection line
+    std::vector<double> projection;
+    for (const auto& p : points) {
+        projection.emplace_back(p.dot(L));
+    }
+    std::vector<int> indices = {0, 1, 2, 3};
+    auto pointSort = [&projection] (int i, int j) {
+        return projection[i] < projection[j];
+    };
+    std::sort(indices.begin(), indices.end(), pointSort);
+
+    // No intersection if the first two elements are from one triangle
+    if ( ((indices[0] < 2) && (indices[1] < 2)) ||
+         ((indices[0] > 1) && (indices[1] > 1)) ) {
+        return iSectPoints;
+    }
+    else {
+        iSectPoints.push_back(points[indices[1]]);
+        iSectPoints.push_back(points[indices[2]]);
+    }
+
+    return iSectPoints;
 }
-
-
-// VTX: Triangle vertices
-// VV: Simplified projection of triangle vertices onto intersection line
-// D: Intersection line vector
-// D0D1, D0D2: product of projection onto triangle plane, used to check which vertices are on which side of other plane
-// Returns 1 if triangles are coplanar
-static inline int isectLineIntervals(const std::vector<Eigen::Vector3d> &VTX, const Eigen::Vector3d &VV,
-                                     const Eigen::Vector3d &D, const double D0D1, const double D0D2,
-                                     Eigen::Vector2d &isect, std::vector<Eigen::Vector3d> &isectpoints)
-{
-    if (D0D1 > 0.0) {
-        // here we know that D0D2<=0.0
-        // that is D0, D1 are on the same side, D2 on the other or on the plane
-        isect2({VTX[2], VTX[0], VTX[1]}, {VV[2], VV[0], VV[1]}, {D[2], D[0], D[1]},
-               isect, isectpoints);
-    } else if (D0D2 > 0.0) {
-        isect2({VTX[1], VTX[0], VTX[2]}, {VV[1], VV[0], VV[2]}, {D[1], D[0], D[2]},
-               isect, isectpoints);
-    } else if ( (D[1] * D[2] > 0.0) || (D[0] != 0.0) ) {
-        isect2({VTX[0], VTX[1], VTX[2]}, {VV[0], VV[1], VV[2]}, {D[0], D[1], D[2]},
-               isect, isectpoints);
-    } else if (D[1] != 0.0) {
-        isect2({VTX[1], VTX[0], VTX[2]}, {VV[1], VV[0], VV[2]}, {D[1], D[0], D[2]},
-               isect, isectpoints);
-    } else if (D[2] != 0.0) {
-        isect2({VTX[2], VTX[0], VTX[1]}, {VV[2], VV[0], VV[1]}, {D[2], D[0], D[1]},
-               isect, isectpoints);
-    } else {
-        // Triangles are coplanar
-        return 1;
-    }
-    return 0;
-}
-
-// Handy definition for sorting two numbers so that a <= b
-#define SORT(a, b, smallest)   \
-    if (a > b) {                \
-        double c;               \
-        c = a;                  \
-        a = b;                  \
-        b = c;                  \
-        smallest = 1;           \
-    } else smallest = 0         \
-
-bool triTriIntersection3d(const std::vector<Eigen::Vector3d> &V,
-                          const std::vector<Eigen::Vector3d> &U,
-                          std::vector<Eigen::Vector3d> &intersectionPoints,
-                          int &coplanar)
-{
-    // Moller triangle-triangle intersection test, from
-    // http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tritri_isectline.txt
-    const double e = 0.000001;
-    if ((V.size() != 3) || (U.size() != 3)) {
-        std::cout << "triTriIntersection: Inputs not triangles" << std::endl;
-        return false;
-    }
-
-    intersectionPoints.clear();
-
-    // Define T1 plane and check T2 vertices against it
-    Eigen::Vector3d N1 = (V[1] - V[0]).cross(V[2] - V[0]);
-    double d1 = -N1.dot(V[0]);
-    // Signed distance of T2 vertices to T1
-    std::vector<double> du;
-    for (int i = 0; i < 3; ++i) {
-        double d = N1.dot(U[i]) + d1;
-        if (abs(d) < e)
-            d = 0;
-        du.push_back(d);
-    }
-
-    double du0du1 = du[0] * du[1];
-    double du0du2 = du[0] * du[2];
-
-    // No intersection occurs (no plane intersection)
-    if ((du0du1 > 0.0) && (du0du2 > 0.0))
-        return 0;
-
-    // Define T2 plane and check T1 vertices against it
-    Eigen::Vector3d N2 = (U[1] - U[0]).cross(U[2] - U[0]);
-    double d2 = -N2.dot(U[0]);
-    // Signed distance of T2 vertices to T1
-    std::vector<double> dv;
-    for (int i = 0; i < 3; ++i) {
-        double d = N2.dot(V[i]) + d2;
-        if (fabs(d) < e)
-            d = 0;
-        dv.push_back(d);
-    }
-
-    double dv0dv1 = dv[0] * dv[1];
-    double dv0dv2 = dv[0] * dv[2];
-
-    // No intersection occurs (no plane intersection)
-    if ((dv0dv1 > 0.0) && (dv0dv2 > 0.0))
-        return 0;
-
-    // Find plane intersection line
-    Eigen::Vector3d D = N1.cross(N2);
-
-    // Compute value and index of largest component of D
-    double max = fabs(D[0]);
-    int index = 0;
-    double b = fabs(D[1]);
-    double c = fabs(D[2]);
-    if (b > max) { max = b; index = 1; }
-    if (c > max) { max = c; index = 2; }
-
-    // Simplified projection onto intersection line
-    Eigen::Vector3d Vp(V[0][index], V[1][index], V[2][index]);
-    Eigen::Vector3d Up(U[0][index], U[1][index], U[2][index]);
-
-    // Compute intervals
-    Eigen::Vector2d isect1, isect2;
-    std::vector<Eigen::Vector3d> isectPointA, isectPointB;
-
-    // Triangle 1
-    coplanar = isectLineIntervals(V, Vp, D, dv0dv1, dv0dv2, isect1, isectPointA);
-
-    if (coplanar) {
-        // TODO: Handle coplanar case
-        return 0;
-    }
-
-    // Triangle 2
-    isectLineIntervals(U, Up, D, du0du1, du0du2, isect2, isectPointB);
-
-    int smallest1, smallest2;
-    SORT(isect1[0], isect1[1], smallest1);
-    SORT(isect2[0], isect2[1], smallest2);
-
-    if ( (isect1[1] < isect2[0]) || (isect2[1] < isect1[0]) )
-        return 0;
-
-    // Now we know the triangles intersect
-    if (isect2[0] < isect1[0]) {
-        if (smallest1 == 0)
-            intersectionPoints.push_back(isectPointA[0]);
-        else
-            intersectionPoints.push_back(isectPointA[1]);
-
-        if (isect2[1] < isect1[1]) {
-            if (smallest2 == 0)
-                intersectionPoints.push_back(isectPointB[1]);
-            else
-                intersectionPoints.push_back(isectPointB[0]);
-        } else {
-            if (smallest1 == 0)
-                intersectionPoints.push_back(isectPointA[1]);
-            else
-                intersectionPoints.push_back(isectPointA[0]);
-        }
-    } else {
-        if (smallest2 == 0)
-            intersectionPoints.push_back(isectPointB[0]);
-        else
-            intersectionPoints.push_back(isectPointB[1]);
-
-        if (isect2[1] > isect1[1]) {
-            if (smallest1 == 0)
-                intersectionPoints.push_back(isectPointA[1]);
-            else
-                intersectionPoints.push_back(isectPointA[0]);
-        } else {
-            if (smallest2 == 0)
-                intersectionPoints.push_back(isectPointB[1]);
-            else
-                intersectionPoints.push_back(isectPointB[0]);
-        }
-    }
-    for (const auto& v : intersectionPoints)
-    {
-        std::cout << v << std::endl;
-    }
-    return 1;
-}
-#undef SORT
 
 
 void sortCCW(std::vector<Eigen::Vector2d> &points)
@@ -260,12 +165,8 @@ void sortCCW(std::vector<Eigen::Vector2d> &points)
 
     // Comparison function for sorting
     auto pointCompare = [&ref](Eigen::Vector2d i, Eigen::Vector2d j) {
-        static const double eps = 1e-6;
         auto ir = i - ref;
         auto jr = j - ref;
-        // Handle singularity case
-        if ((std::fabs(ir[1]) < eps) || (std::fabs(jr[1]) < eps))
-            return (ir[0] < jr[0]);
         // Return slope of line
         return (ir[0]/ir[1]) < (jr[0]/jr[1]);
     };
@@ -274,7 +175,7 @@ void sortCCW(std::vector<Eigen::Vector2d> &points)
 }
 
 
-std::vector<Eigen::Vector2d> convexHull2D(std::vector<Eigen::Vector2d> &points)
+std::vector<Eigen::Vector2d> convexHull2d(std::vector<Eigen::Vector2d> &points)
 {
     // This is based on the Graham Scan algorithm
     // Sort points into CCW order
@@ -315,21 +216,168 @@ std::vector<Eigen::Vector2d> convexHull2D(std::vector<Eigen::Vector2d> &points)
     return hull;
 }
 
+// Finds the area of the convex hull of the points given in points
+double polygonArea(std::vector<Eigen::Vector2d>& points)
+{
+    auto convexHull = convexHull2d(points);
+    double sum = 0.0;
+    for (unsigned int i = 0; i < convexHull.size() - 1; ++i) {
+        sum += convexHull[i][0] * convexHull[i+1][1] - convexHull[i+1][0] * convexHull[i][1];
+    }
+    sum += convexHull.back()[0] * convexHull[0][1] - convexHull[0][0] * convexHull.back()[1];
 
-std::vector<Eigen::Vector3d> planeProjection(const std::vector<Eigen::Vector3d> &points,
+    return std::fabs(0.5 * sum);
+}
+
+
+std::vector<Eigen::Vector2d> planeProjection(const std::vector<Eigen::Vector3d> &points,
                                              const Eigen::Vector3d &normal)
 {
     // Find rotation from global to local coords
     Eigen::Quaterniond tf = Eigen::Quaterniond::FromTwoVectors(normal, Eigen::Vector3d(0,0,1));
     tf.normalize();
     // Output vector
-    std::vector<Eigen::Vector3d> out;
+    std::vector<Eigen::Vector2d> out;
 
     for (const auto& p : points) {
-        out.push_back(tf * p);
+        Eigen::Vector3d tf_vec = tf * p;
+        out.emplace_back(tf_vec[0], tf_vec[1]);
     }
 
     return out;
+}
+
+
+bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::Affine>& tf1,
+                      const Mesh& m2, const Eigen::Transform<double, 3, Eigen::Affine>& tf2,
+                      std::vector<Eigen::Vector3d>& iSectPoints, Eigen::Vector3d& iSectVector)
+{
+    Eigen::Transform<double, 3, Eigen::Affine> tf2to1 = tf1.inverse() * tf2;
+    Eigen::Transform<double, 3, Eigen::Affine> tf1to2 = tf2.inverse() * tf1;
+
+    // Check if the sphere representations of the meshes overlap
+    double meshDist = (tf2to1 * m2.centroid_ - m1.centroid_).norm();
+    if (meshDist > (m1.radius_ + m2.radius_))
+        return false;
+
+    // Find faces that might intersect
+    std::vector<Face> m1FaceOpts;
+    std::vector<Face> m2FaceOpts;
+    Eigen::Vector3d m1Centroidin2 = tf1to2 * m1.centroid_;
+    Eigen::Vector3d m2Centroidin1 = tf2to1 * m2.centroid_;
+    for (const auto& f : m1.faces_) {
+        // Based on the angle of the face with the other mesh, calculate the minimum distance between the centroid
+        // of the face and the surface of the mesh to guarantee no intersection
+        double face_radius = (f.centroid - m2Centroidin1).normalized().cross(f.normal).norm() * f.radius;
+        double dist = (f.centroid - m2Centroidin1).norm();
+        if (dist < (face_radius + m2.radius_))
+            m1FaceOpts.emplace_back(f);
+    }
+    for (const auto& f : m2.faces_) {
+        // Based on the angle of the face with the other mesh, calculate the minimum distance between the centroid
+        // of the face and the surface of the mesh to guarantee no intersection
+        double face_radius = (f.centroid - m1Centroidin2).normalized().cross(f.normal).norm() * f.radius;
+        double dist = (f.centroid - m1Centroidin2).norm();
+        if (dist < (face_radius + m1.radius_))
+            m2FaceOpts.emplace_back(f);
+    }
+
+    // If there are no potential face intersections
+    if (m1FaceOpts.empty() || m2FaceOpts.empty())
+        return false;
+
+    // Stores intersection points sorted by face
+    std::vector<std::vector<Eigen::Vector3d>> m1FaceIsct(m1FaceOpts.size());
+    std::vector<std::vector<Eigen::Vector3d>> m2FaceIsct(m2FaceOpts.size());
+    // Stores list of vertices of all face options
+    std::vector<int> m1VertexOpts;
+    std::vector<int> m2VertexOpts;
+
+    // Check all possible collisions
+    int num_isects = 0;
+    for (unsigned int i = 0; i < m1FaceOpts.size(); ++i) {
+        std::vector<Eigen::Vector3d> m1Tri = {
+            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[0]],
+            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[1]],
+            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[2]] };
+        m1VertexOpts.insert(m1VertexOpts.end(), m1FaceOpts[i].vertexIdxs.begin(), m1FaceOpts[i].vertexIdxs.end());
+
+        for (unsigned int j = 0; j < m2FaceOpts.size(); ++j) {
+            if ( i == 0 ) {
+                m2VertexOpts.insert(m2VertexOpts.end(), m2FaceOpts[j].vertexIdxs.begin(), m2FaceOpts[j].vertexIdxs.end());
+            }
+            std::vector<Eigen::Vector3d> m2Tri = {
+                m2.vertices_[m2FaceOpts[j].vertexIdxs[0]],
+                m2.vertices_[m2FaceOpts[j].vertexIdxs[1]],
+                m2.vertices_[m2FaceOpts[j].vertexIdxs[2]] };
+            // Find intersection points
+            auto isects = triTriIntersection3d(m1Tri, m2Tri);
+            num_isects += isects.size();
+            m1FaceIsct[i].insert(m1FaceIsct[i].end(), isects.begin(), isects.end());
+            m2FaceIsct[j].insert(m2FaceIsct[j].end(), isects.begin(), isects.end());
+        }
+    }
+
+    if (num_isects == 0)
+        return false;
+
+    // Get list of unique vertices
+    std::sort(m1VertexOpts.begin(), m1VertexOpts.end());
+    std::sort(m2VertexOpts.begin(), m2VertexOpts.end());
+    m1VertexOpts.erase(std::unique(m1VertexOpts.begin(), m1VertexOpts.end()), m1VertexOpts.end());
+    m2VertexOpts.erase(std::unique(m2VertexOpts.begin(), m2VertexOpts.end()), m2VertexOpts.end());
+
+    // Check if any vertices of either mesh are inside the other mesh
+    for (const auto& vtx : m1VertexOpts) {
+        bool inside = true;
+        for (const auto& face : m2.faces_) {
+            if ( (m1.vertices_[vtx] - m2.vertices_[face.vertexIdxs[0]]).dot(face.normal) > 0 ) {
+                inside = false;
+                break;
+            }
+        }
+        if (inside) {
+            for (auto faceIdx : m1.facesLookup_[vtx]) {
+                m1FaceIsct[faceIdx].push_back(m1.vertices_[vtx]);
+            }
+        }
+    }
+    for (const auto& vtx : m2VertexOpts) {
+        bool inside = true;
+        for (const auto& face : m1.faces_) {
+            if ( (m2.vertices_[vtx] - m1.vertices_[face.vertexIdxs[0]]).dot(face.normal) > 0 ) {
+                inside = false;
+                break;
+            }
+        }
+        if (inside) {
+            for (auto faceIdx : m2.facesLookup_[vtx]) {
+                m2FaceIsct[faceIdx].push_back(m2.vertices_[vtx]);
+            }
+        }
+    }
+
+    // Find area of intersectioni
+    iSectVector.setZero();
+    iSectPoints.clear();
+    for (unsigned int i = 0; i < m1FaceIsct.size(); ++i) {
+        if (m1FaceIsct[i].size() < 3)
+            continue;
+        auto pts = planeProjection(m1FaceIsct[i], m1.faces_[i].normal);
+        iSectVector += m1.faces_[i].normal * polygonArea(pts);
+    }
+    for (unsigned int i = 0; i < m2FaceIsct.size(); ++i) {
+        if (m2FaceIsct[i].size() < 3)
+            continue;
+        auto pts = planeProjection(m2FaceIsct[i], m2.faces_[i].normal);
+        iSectVector += m2.faces_[i].normal * polygonArea(pts);
+    }
+
+    if (iSectVector.norm() < 1e-6)
+        return false;
+
+    std::cout << "Isect vector: " << std::endl << iSectVector << std::endl << std::endl;
+    return true;
 }
 
 } //namespace geometry

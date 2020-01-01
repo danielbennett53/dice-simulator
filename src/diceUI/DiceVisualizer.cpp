@@ -1,4 +1,5 @@
 #include "DiceVisualizer.h"
+#include "Geometry.h"
 #include <QtMath>
 #include <iostream>
 #include <QMatrix4x4>
@@ -11,6 +12,7 @@ DiceVisualizer::DiceVisualizer(QWidget *parent) : QOpenGLWidget(parent) {}
 
 void DiceVisualizer::timerEvent(QTimerEvent *e)
 {
+    (void) e;
     update();
 }
 
@@ -124,6 +126,17 @@ void DiceVisualizer::paintGL()
             }
         }
     }
+
+//    for (unsigned int i = 0; i < bodies_.size(); ++i) {
+//        for (unsigned int j = i+1; j < bodies_.size(); ++ j) {
+//            bool isect = geometry::meshIntersection(Mesh::options.at(bodies_[i].mesh_idx_), bodies_[i].tf_,
+//                                                    Mesh::options.at(bodies_[j].mesh_idx_), bodies_[j].tf_);
+//            if (isect) {
+//                std::cout << "Body 1: " << Mesh::options.at(bodies_[i].mesh_idx_).textureFilepath_ <<
+//                             "  Body 2: " << Mesh::options.at(bodies_[j].mesh_idx_).textureFilepath_ << std::endl;
+//            }
+//        }
+//    }
     makeCurrent();
     updateCameraView();
     // Clear color and depth buffer
@@ -161,21 +174,21 @@ void DiceVisualizer::addMesh(Mesh &m)
 
     // Allocate arrays
     m.VBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-    m.VBO_.allocate(&m.vertices_[0], m.vertices_.size() * sizeof(Vertex));
+    m.VBO_.allocate(&m.drawVertices_[0], m.drawVertices_.size() * sizeof(drawVertex));
 
     m.EBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-    m.EBO_.allocate(&m.indices_[0], m.indices_.size() * sizeof(int));
+    m.EBO_.allocate(&m.drawIndices_[0], m.drawIndices_.size() * sizeof(int));
 
     // Enable attribute arrays (0 is vertex position, 1 is texture coord)
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
 
     // Define position attribute
-    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex), nullptr);
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(drawVertex), nullptr);
 
     // Define texture coordinates attribute
-    glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, sizeof(Vertex),
-                          (void*) offsetof(Vertex, texCoords));
+    glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, sizeof(drawVertex),
+                          (void*) offsetof(drawVertex, texCoords));
 
     // Load texture
     loadTextures(m);
@@ -213,7 +226,7 @@ void DiceVisualizer::drawMesh(Mesh &m, const Eigen::Transform<double, 3, Eigen::
     m.VBO_.bind();
     m.EBO_.bind();
     m.tex_->bind();
-    glDrawElements(GL_TRIANGLES, (GLsizei) m.indices_.size(), GL_UNSIGNED_INT,
+    glDrawElements(GL_TRIANGLES, (GLsizei) m.drawIndices_.size(), GL_UNSIGNED_INT,
                    nullptr);
     m.VAO_.release();
     m.VBO_.release();
@@ -285,6 +298,23 @@ void DiceVisualizer::updateCameraView()
     cam_view_.setToIdentity();
     cam_view_.lookAt(cam_pos, cam_target, up);
 
+    // Move dice
+    if (buttons_pressed_.testFlag(Qt::LeftButton)) {
+        for (auto& b : bodies_) {
+            if (b.selected_) {
+                auto translate = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+                Eigen::Matrix3d rot;
+                auto R = cam_view_.inverted();
+                rot << R(0,0), R(0,1), R(0,2),
+                       R(1,0), R(1,1), R(2,2),
+                       R(2,0), R(2,1), R(2,2);
+
+                translate.translate(rot * Eigen::Vector3d(0.01 * diffX, -0.01 * diffY, 0));
+                b.setPosition( translate * b.tf_);
+            }
+        }
+    }
+
     // Propagate mouse position history
     lastMousePos_ = currMousePos_;
 }
@@ -316,7 +346,7 @@ void DiceVisualizer::mousePressEvent(QMouseEvent* event)
         Eigen::Vector3d intersection;
         int idx = -1;
         double dist = HUGE_VAL;
-        for (int i = 0; i < bodies_.size(); ++i) {
+        for (unsigned int i = 0; i < bodies_.size(); ++i) {
             auto start = Eigen::Vector4d(origin[0], origin[1], origin[2], 1.0);
             auto dir = Eigen::Vector4d(direction[0], direction[1], direction[2], 0.0);
 

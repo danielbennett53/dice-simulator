@@ -9,14 +9,18 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
 
+//namespace geometry {
+
 typedef struct  {
     Eigen::Vector3d position;
     Eigen::Vector2d texCoords;
-} Vertex;
+} drawVertex;
 
 typedef struct {
-    std::vector<int> meshIndices;
+    std::vector<int> vertexIdxs;
     Eigen::Vector3d normal;
+    Eigen::Vector3d centroid;
+    double radius;
 } Face;
 
 class Mesh
@@ -26,19 +30,17 @@ public:
     bool rayIntersectsMesh(const Eigen::Vector3d &rayOrigin,
                            const Eigen::Vector3d &rayVector,
                            Eigen::Vector3d &intersectionPoint);
-    bool intersectsMesh(const Mesh &m,
-                        const Eigen::Transform<double, 3, Eigen::Affine> &tf,
-                        std::vector<Eigen::Vector3d> intersectionPoints);
 
     // Define mesh vertices and textures
-    std::vector<Vertex> vertices_;
-    std::vector<int> indices_;
+    std::vector<drawVertex> drawVertices_;
+    std::vector<int> drawIndices_;
+    std::vector<Eigen::Vector3d> vertices_;
     std::vector<Face> faces_;
+    std::vector<std::vector<int>> facesLookup_;
 
     // Define mesh centroid and largest convex dimension for intersection culling
     Eigen::Vector3d centroid_ = Eigen::Vector3d::Zero();
-    Eigen::Vector3d upperLims_ = Eigen::Vector3d::Ones()*(-HUGE_VAL);
-    Eigen::Vector3d lowerLims_ = Eigen::Vector3d::Ones()*HUGE_VAL;
+    double radius_ = 0.0;
 
     //  Render data
     QOpenGLVertexArrayObject VAO_;
@@ -64,13 +66,11 @@ public:
     // Global list of meshes
     static std::map<Mesh::meshType, Mesh> options;
     static std::map<Mesh::meshType, Mesh> initMeshes();
+
 protected:
     double rayIntersectsTriangle(const Eigen::Vector3d &rayOrigin,
                               const Eigen::Vector3d &rayVector,
                               const std::vector<Eigen::Vector3d> &verts);
-    bool triTriIntersection3d(const std::vector<Eigen::Vector3d> &V,
-                              const std::vector<Eigen::Vector3d> &U,
-                              std::vector<Eigen::Vector3d> &intersectionPoints,
-                              int &coplanar);
 };
 
+//}

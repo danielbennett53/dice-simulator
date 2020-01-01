@@ -15,7 +15,6 @@ EBO_(QOpenGLBuffer::IndexBuffer)
     }
 
     // Variables for storing each element when scanning obj file
-    std::vector<Eigen::Vector3d> vertices;
     std::vector<Eigen::Vector2d> texCoords;
     std::vector<Eigen::Vector3d> normals;
     std::map<int, std::map<int, int>> uniqueIndices;
@@ -29,7 +28,7 @@ EBO_(QOpenGLBuffer::IndexBuffer)
         if (token == "v") { // Vertex
             Eigen::Vector3d vertex;
             ls >>  vertex[0] >> vertex[1] >> vertex[2];
-            vertices.push_back(vertex);
+            vertices_.push_back(vertex);
         } else if (token == "vt") { // Texture coordinates
             Eigen::Vector2d texCoord;
             ls >> texCoord[0] >> texCoord[1];
@@ -56,18 +55,30 @@ EBO_(QOpenGLBuffer::IndexBuffer)
                     idxs.push_back(std::stoi(idx) - 1);
                 }
                 if (uniqueIndices.count(idxs[0]) && uniqueIndices[idxs[0]].count(idxs[1])) {
-                    indices_.push_back(uniqueIndices[idxs[0]][idxs[1]]);
+                    drawIndices_.push_back(uniqueIndices[idxs[0]][idxs[1]]);
                 } else {
-                    vertices_.emplace_back(
-                            Vertex{vertices[idxs[0]], texCoords[idxs[1]]});
-                    indices_.push_back(vertices_.size() - 1);
-                    uniqueIndices[idxs[0]][idxs[1]] = vertices_.size() - 1;
+                    drawVertices_.emplace_back(
+                            drawVertex{vertices_[idxs[0]], texCoords[idxs[1]]});
+                    drawIndices_.push_back(drawVertices_.size() - 1);
+                    uniqueIndices[idxs[0]][idxs[1]] = drawVertices_.size() - 1;
                 }
 
-                faceIndices.push_back(indices_.back());
+                faceIndices.push_back(idxs[0]);
                 norm = normals[idxs[2]];
             }
-            faces_.emplace_back(Face{faceIndices, norm});
+            // Find radius and centroid of enclosing circle for each face
+            Eigen::Vector3d faceCentroid = Eigen::Vector3d::Zero();
+            for (const auto& i : faceIndices) {
+                faceCentroid += vertices_[i];
+            }
+            faceCentroid = faceCentroid / faceIndices.size();
+            double faceRadius = 0;
+            for (const auto& i : faceIndices) {
+                double r = (vertices_[i] - faceCentroid).norm();
+                if (r > faceRadius)
+                    faceRadius = r;
+            }
+            faces_.emplace_back(Face{faceIndices, norm, faceCentroid, faceRadius});
         } else if (token == "mtllib") { // Material file
             // Get name of mtl file
             std::string filename;
@@ -105,14 +116,26 @@ EBO_(QOpenGLBuffer::IndexBuffer)
     }
     fd.close();
 
-    for (const auto &v : vertices_) {
-        centroid_ += v.position;
-        for (int i = 0; i < 3; ++i) {
-            lowerLims_[i] = v.position[i] < lowerLims_[i] ? v.position[i] : lowerLims_[i];
-            upperLims_[i] = v.position[i] > upperLims_[i] ? v.position[i] : upperLims_[i];
-        }
-    }
+    // Find centroid and max radius of mesh
+    for (const auto &v : vertices_)
+        centroid_ += v;
     centroid_ /= vertices_.size();
+
+    for (const auto &v : vertices_) {
+        double r = (v - centroid_).norm();
+        if ( r > radius_ )
+            radius_ = r;
+    }
+
+    // Find the faces each vertex is on
+    for (unsigned int i = 0; i < vertices_.size(); ++i) {
+        std::vector<int> facesList;
+        for (unsigned int j = 0; j < faces_.size(); ++j) {
+            if (std::find(faces_[j].vertexIdxs.begin(), faces_[j].vertexIdxs.end(), i) != faces_[j].vertexIdxs.end())
+                facesList.push_back(j);
+        }
+        facesLookup_.push_back(facesList);
+    }
 }
 
 std::map<Mesh::meshType, Mesh> Mesh::initMeshes()
@@ -136,16 +159,14 @@ bool Mesh::rayIntersectsMesh(const Eigen::Vector3d &rayOrigin,
     // Point of closest approach
     double t = (centroid_.dot(rayVector) - rayOrigin.dot(rayVector)) / rayVector.dot(rayVector);
     Eigen::Vector3d p = rayOrigin + t*rayVector;
-    if ( (p[0] > upperLims_[0]) || (p[1] > upperLims_[1]) || (p[2] > upperLims_[2]) ||
-         (p[0] < lowerLims_[0]) || (p[1] < lowerLims_[1]) || (p[2] < lowerLims_[2])) {
+    if ( (p - centroid_).norm() > radius_)
         return false;
-    }
 
     // Iterate through every face to find closest intersection
     t = -1;
     for (const auto &f : faces_) {
-        auto new_t = geometry::rayIntersectsTriangle(rayOrigin, rayVector, {vertices_[f.meshIndices[0]].position,
-                              vertices_[f.meshIndices[1]].position, vertices_[f.meshIndices[2]].position});
+        auto new_t = geometry::rayIntersectsTriangle(rayOrigin, rayVector, {vertices_[f.vertexIdxs[0]],
+                              vertices_[f.vertexIdxs[1]], vertices_[f.vertexIdxs[2]]});
         if ((new_t > 0) && ((t < 0) || (new_t < t))) {
             t = new_t;
         }
@@ -157,3 +178,5 @@ bool Mesh::rayIntersectsMesh(const Eigen::Vector3d &rayOrigin,
     intersectionPoint = rayOrigin + t*rayVector;
     return true;
 }
+
+

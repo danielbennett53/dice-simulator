@@ -91,7 +91,7 @@ void SolidBody::step()
 
     for (const auto &vertex : MESH.vertices_) {
         Eigen::Quaterniond v_q;
-        v_q.vec() << vertex.position[0], vertex.position[1], vertex.position[2];
+        v_q.vec() << vertex[0], vertex[1], vertex[2];
         v_q.w() = 0;
         Eigen::Quaterniond tfVertex_q = orientation_ * v_q * orientation_.inverse();
         Eigen::Vector3d tfVertex = tfVertex_q.vec();
@@ -219,13 +219,13 @@ void SolidBody::calculatePhysicalProperties(float density)
     M_ = Eigen::Matrix<double, 6, 6>::Zero();
 
     // Pick first vertex as starting point to make sure it is within the mesh
-    auto refPoint =MESH.vertices_[0].position;
+    auto refPoint =MESH.vertices_[0];
 
     // Calculate volume and centroid
     for (const auto& face : MESH.faces_) {
-        Eigen::Vector3d a = MESH.vertices_[face.meshIndices[0]].position;
-        Eigen::Vector3d b = MESH.vertices_[face.meshIndices[1]].position;
-        Eigen::Vector3d c = MESH.vertices_[face.meshIndices[2]].position;
+        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]];
+        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]];
+        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]];
 
         double temp_volume = fabs(((a - refPoint).cross(b - refPoint)).dot(c - refPoint) / 6.0);
         auto temp_centroid = Eigen::Vector3d(a[0] + b[0] + c[0] + refPoint[0],
@@ -251,9 +251,9 @@ void SolidBody::calculatePhysicalProperties(float density)
 
     // Calculate intertia tensor
     for (const auto& face : MESH.faces_) {
-        Eigen::Vector3d a = MESH.vertices_[face.meshIndices[0]].position - centroid;
-        Eigen::Vector3d b = MESH.vertices_[face.meshIndices[1]].position - centroid;
-        Eigen::Vector3d c = MESH.vertices_[face.meshIndices[2]].position - centroid;
+        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]] - centroid;
+        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]] - centroid;
+        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]] - centroid;
 
         double vol = fabs(a.cross(b).dot(c)) / 6.0f;
         Ia += density * vol *
