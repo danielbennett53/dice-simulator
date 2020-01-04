@@ -23,6 +23,12 @@ typedef struct {
     double radius;
 } Face;
 
+typedef struct {
+    Eigen::Vector3d point;
+    std::vector<int> connectedFaces;
+    std::vector<int> connectedVertices;
+} meshVertex;
+
 class Mesh
 {
 public:    
@@ -34,9 +40,8 @@ public:
     // Define mesh vertices and textures
     std::vector<drawVertex> drawVertices_;
     std::vector<int> drawIndices_;
-    std::vector<Eigen::Vector3d> vertices_;
+    std::vector<meshVertex> vertices_;
     std::vector<Face> faces_;
-    std::vector<std::vector<int>> facesLookup_;
 
     // Define mesh centroid and largest convex dimension for intersection culling
     Eigen::Vector3d centroid_ = Eigen::Vector3d::Zero();

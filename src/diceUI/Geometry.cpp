@@ -297,9 +297,9 @@ bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::A
     int num_isects = 0;
     for (unsigned int i = 0; i < m1FaceOpts.size(); ++i) {
         std::vector<Eigen::Vector3d> m1Tri = {
-            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[0]],
-            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[1]],
-            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[2]] };
+            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[0]].point,
+            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[1]].point,
+            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[2]].point };
         m1VertexOpts.insert(m1VertexOpts.end(), m1FaceOpts[i].vertexIdxs.begin(), m1FaceOpts[i].vertexIdxs.end());
 
         for (unsigned int j = 0; j < m2FaceOpts.size(); ++j) {
@@ -307,9 +307,9 @@ bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::A
                 m2VertexOpts.insert(m2VertexOpts.end(), m2FaceOpts[j].vertexIdxs.begin(), m2FaceOpts[j].vertexIdxs.end());
             }
             std::vector<Eigen::Vector3d> m2Tri = {
-                m2.vertices_[m2FaceOpts[j].vertexIdxs[0]],
-                m2.vertices_[m2FaceOpts[j].vertexIdxs[1]],
-                m2.vertices_[m2FaceOpts[j].vertexIdxs[2]] };
+                m2.vertices_[m2FaceOpts[j].vertexIdxs[0]].point,
+                m2.vertices_[m2FaceOpts[j].vertexIdxs[1]].point,
+                m2.vertices_[m2FaceOpts[j].vertexIdxs[2]].point };
             // Find intersection points
             auto isects = triTriIntersection3d(m1Tri, m2Tri);
             num_isects += isects.size();
@@ -331,28 +331,28 @@ bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::A
     for (const auto& vtx : m1VertexOpts) {
         bool inside = true;
         for (const auto& face : m2.faces_) {
-            if ( (m1.vertices_[vtx] - m2.vertices_[face.vertexIdxs[0]]).dot(face.normal) > 0 ) {
+            if ( (m1.vertices_[vtx].point - m2.vertices_[face.vertexIdxs[0]].point).dot(face.normal) > 0 ) {
                 inside = false;
                 break;
             }
         }
         if (inside) {
-            for (auto faceIdx : m1.facesLookup_[vtx]) {
-                m1FaceIsct[faceIdx].push_back(m1.vertices_[vtx]);
+            for (auto faceIdx : m1.vertices_[vtx].connectedFaces) {
+                m1FaceIsct[faceIdx].push_back(m1.vertices_[vtx].point);
             }
         }
     }
     for (const auto& vtx : m2VertexOpts) {
         bool inside = true;
         for (const auto& face : m1.faces_) {
-            if ( (m2.vertices_[vtx] - m1.vertices_[face.vertexIdxs[0]]).dot(face.normal) > 0 ) {
+            if ( (m2.vertices_[vtx].point - m1.vertices_[face.vertexIdxs[0]].point).dot(face.normal) > 0 ) {
                 inside = false;
                 break;
             }
         }
         if (inside) {
-            for (auto faceIdx : m2.facesLookup_[vtx]) {
-                m2FaceIsct[faceIdx].push_back(m2.vertices_[vtx]);
+            for (auto faceIdx : m2.vertices_[vtx].connectedFaces) {
+                m2FaceIsct[faceIdx].push_back(m2.vertices_[vtx].point);
             }
         }
     }

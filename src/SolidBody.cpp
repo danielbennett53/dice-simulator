@@ -18,13 +18,13 @@ double contact_cost_fcn(unsigned int n, const double *x, double *grad, void *my_
 {
     auto *data = (contact_problem_data *) my_func_data;
     Eigen::VectorXd X(n);
-    for (int i=0;i<n;++i) {
+    for (unsigned int i=0;i<n;++i) {
         X(i) = x[i];
     }
 
     if (grad) {
         Eigen::VectorXd g = 0.5*(data->A + data->A.transpose())*X + data->b;
-        for (int i=0;i<n;++i) {
+        for (unsigned int i=0;i<n;++i) {
             grad[i] = g(i);
         }
     }
@@ -91,7 +91,7 @@ void SolidBody::step()
 
     for (const auto &vertex : MESH.vertices_) {
         Eigen::Quaterniond v_q;
-        v_q.vec() << vertex[0], vertex[1], vertex[2];
+        v_q.vec() << vertex.point[0], vertex.point[1], vertex.point[2];
         v_q.w() = 0;
         Eigen::Quaterniond tfVertex_q = orientation_ * v_q * orientation_.inverse();
         Eigen::Vector3d tfVertex = tfVertex_q.vec();
@@ -219,13 +219,13 @@ void SolidBody::calculatePhysicalProperties(float density)
     M_ = Eigen::Matrix<double, 6, 6>::Zero();
 
     // Pick first vertex as starting point to make sure it is within the mesh
-    auto refPoint =MESH.vertices_[0];
+    auto refPoint =MESH.vertices_[0].point;
 
     // Calculate volume and centroid
     for (const auto& face : MESH.faces_) {
-        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]];
-        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]];
-        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]];
+        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]].point;
+        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]].point;
+        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]].point;
 
         double temp_volume = fabs(((a - refPoint).cross(b - refPoint)).dot(c - refPoint) / 6.0);
         auto temp_centroid = Eigen::Vector3d(a[0] + b[0] + c[0] + refPoint[0],
@@ -251,9 +251,9 @@ void SolidBody::calculatePhysicalProperties(float density)
 
     // Calculate intertia tensor
     for (const auto& face : MESH.faces_) {
-        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]] - centroid;
-        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]] - centroid;
-        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]] - centroid;
+        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]].point - centroid;
+        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]].point - centroid;
+        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]].point - centroid;
 
         double vol = fabs(a.cross(b).dot(c)) / 6.0f;
         Ia += density * vol *
