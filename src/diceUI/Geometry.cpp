@@ -146,6 +146,31 @@ std::vector<Eigen::Vector3d> triTriIntersection3d(std::vector<Eigen::Vector3d> &
 }
 
 
+Eigen::Vector3d support(const std::vector<vertex>& shape, const Eigen::Vector3d& D, int startingIdx)
+{
+    std::vector<double> dotProduct(shape.size(), NAN);
+    int idx = startingIdx;
+    dotProduct[idx] = shape[idx].point.dot(D);
+    unsigned int pointsVisited = 1;
+    while (pointsVisited < shape.size()) {
+        int new_idx = idx;
+        for (const auto& p : shape[idx].connectedVertices) {
+            if (std::isnan(dotProduct[p])) {
+                dotProduct[p] = shape[p].point.dot(D);
+                pointsVisited++;
+            }
+
+            if (dotProduct[p] > dotProduct[new_idx])
+                new_idx = p;
+        }
+        if (new_idx == idx)
+            break;
+        idx = new_idx;
+    }
+
+    return shape[idx].point;
+}
+
 void sortCCW(std::vector<Eigen::Vector2d> &points)
 {
     // Reference point (lowest y value)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Geometry.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -9,7 +10,6 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
 
-//namespace geometry {
 
 typedef struct  {
     Eigen::Vector3d position;
@@ -23,11 +23,6 @@ typedef struct {
     double radius;
 } Face;
 
-typedef struct {
-    Eigen::Vector3d point;
-    std::vector<int> connectedFaces;
-    std::vector<int> connectedVertices;
-} meshVertex;
 
 class Mesh
 {
@@ -40,7 +35,7 @@ public:
     // Define mesh vertices and textures
     std::vector<drawVertex> drawVertices_;
     std::vector<int> drawIndices_;
-    std::vector<meshVertex> vertices_;
+    std::vector<geometry::vertex> vertices_;
     std::vector<Face> faces_;
 
     // Define mesh centroid and largest convex dimension for intersection culling
@@ -77,5 +72,3 @@ protected:
                               const Eigen::Vector3d &rayVector,
                               const std::vector<Eigen::Vector3d> &verts);
 };
-
-//}

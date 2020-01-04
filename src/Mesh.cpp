@@ -1,5 +1,4 @@
 #include "Mesh.h"
-#include "Geometry.h"
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -28,7 +27,7 @@ EBO_(QOpenGLBuffer::IndexBuffer)
         if (token == "v") { // Vertex
             Eigen::Vector3d vertex;
             ls >>  vertex[0] >> vertex[1] >> vertex[2];
-            vertices_.emplace_back(meshVertex{vertex, {}, {}});
+            vertices_.emplace_back(geometry::vertex{vertex, {}, {}});
         } else if (token == "vt") { // Texture coordinates
             Eigen::Vector2d texCoord;
             ls >> texCoord[0] >> texCoord[1];

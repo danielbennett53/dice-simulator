@@ -11,12 +11,21 @@
 
 namespace geometry {
 
+typedef struct {
+    Eigen::Vector3d point;
+    std::vector<int> connectedFaces;
+    std::vector<int> connectedVertices;
+} vertex;
+
 double rayIntersectsTriangle(const Eigen::Vector3d &rayOrigin,
                              const Eigen::Vector3d &rayVector,
                              const std::vector<Eigen::Vector3d> &verts);
 
 std::vector<Eigen::Vector3d> triTriIntersection3d(std::vector<Eigen::Vector3d> &A,
                                                   std::vector<Eigen::Vector3d> &B);
+
+Eigen::Vector3d support(const std::vector<vertex>& shape, const Eigen::Vector3d& D,
+                        int startingIdx = 0);
 
 void sortCCW(std::vector<Eigen::Vector2d> &points);
 
