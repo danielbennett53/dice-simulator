@@ -16,6 +16,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    ConvexPolytope.cpp \
     DiceVisualizer.cpp \
     Geometry.cpp \
     main.cpp \
@@ -27,6 +28,7 @@ SOURCES += \
     ../SolidBody.cpp
 
 HEADERS += \
+    ConvexPolytope.h \
     DiceVisualizer.h \
     Geometry.h \
     mainwindow.h \

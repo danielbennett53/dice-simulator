@@ -19,8 +19,6 @@ typedef struct  {
 typedef struct {
     std::vector<int> vertexIdxs;
     Eigen::Vector3d normal;
-    Eigen::Vector3d centroid;
-    double radius;
 } Face;
 
 
