@@ -1,9 +1,14 @@
 #pragma once
 
+#include "ObjReader.h"
+
 #include <vector>
 #include <Eigen/Geometry>
 #include <list>
 #include <memory>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLBuffer>
+#include <QOpenGLTexture>
 
 namespace geometry {
 
@@ -115,7 +120,7 @@ public:
 class ConvexPolytope
 {
 public:
-    ConvexPolytope(const std::string& objFile);
+    ConvexPolytope(const ObjReader& obj);
     ConvexPolytope(const std::vector<Eigen::Vector3d>& points);
     ConvexPolytope(const std::vector<Face>& faces) : faces_(faces) { updateCentroid(); };
 
@@ -124,6 +129,21 @@ public:
 
     // Adds vertex to simplex, keeping face_to_keep. Only valid if faces_.size() == 4
     void addVertexSimplex(const Eigen::Vector3d& point, unsigned int face_to_keep);
+
+    // Draws polytope
+    void draw();
+
+    // Fetches vertices list
+    const std::vector<std::weak_ptr<Vertex>>& getVertices() {
+        unsigned int i = 0;
+        while (i < vertices_.size()) {
+            if (vertices_[i].expired())
+                remove_at(vertices_, i);
+            else
+                ++i;
+        }
+        return vertices_;
+    }
 
     const Eigen::Vector3d& getCentroid() {
         if (centroid_valid_)
@@ -145,8 +165,33 @@ private:
     // Define mesh centroid and largest convex dimension for intersection culling
     Eigen::Vector3d centroid_ = Eigen::Vector3d::Zero();
     bool centroid_valid_ = false;
-    double radius_ = 0.0;
+    double radius_ = 0.0;    
+    std::vector<std::weak_ptr<Vertex>> vertices_;
     void updateCentroid();
+};
+
+
+typedef struct  {
+    Eigen::Vector3d position;
+    Eigen::Vector2d texCoords;
+} drawVertex;
+
+
+class OGLPolytope : ConvexPolytope
+{
+public:
+    OGLPolytope(const ObjReader& obj);
+
+    void draw();
+
+private:
+    std::vector<drawVertex> drawVertices_;
+    std::vector<int> drawIndices_;
+
+    // Render data
+    QOpenGLVertexArrayObject VAO_;
+    QOpenGLBuffer VBO_, EBO_;
+    std::shared_ptr<QOpenGLTexture> tex_;
 };
 
 } // namespace geometry

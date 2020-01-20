@@ -19,6 +19,7 @@ SOURCES += \
     ConvexPolytope.cpp \
     DiceVisualizer.cpp \
     Geometry.cpp \
+    ObjReader.cpp \
     main.cpp \
     mainwindow.cpp \
     #../shaders/fragment.glsl \
@@ -31,6 +32,7 @@ HEADERS += \
     ConvexPolytope.h \
     DiceVisualizer.h \
     Geometry.h \
+    ObjReader.h \
     mainwindow.h \
     ../Mesh.h \
     ../SolidBody.h

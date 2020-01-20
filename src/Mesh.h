@@ -11,10 +11,6 @@
 #include <QOpenGLTexture>
 
 
-typedef struct  {
-    Eigen::Vector3d position;
-    Eigen::Vector2d texCoords;
-} drawVertex;
 
 typedef struct {
     std::vector<int> vertexIdxs;

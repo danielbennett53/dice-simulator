@@ -1,13 +1,38 @@
 #include "ConvexPolytope.h"
 #include <cassert>
 #include <algorithm>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
 
 namespace geometry {
 
 
-ConvexPolytope::ConvexPolytope(const std::string& objFile)
+ConvexPolytope::ConvexPolytope(const ObjReader& obj)
 {
+    // Make pointers for each vertex
+    std::vector<std::shared_ptr<Vertex>> vtxs;
+    for (const auto& p : obj.points) {
+        vtxs.emplace_back(p);
+        vertices_.push_back(vtxs.back());
+    }
+    for (const auto& f : obj.faces) {
+        // Calculate obj file face normal
+        Eigen::Vector3d norm = (obj.normals[f[0].normal_idx] +
+                                obj.normals[f[1].normal_idx] +
+                                obj.normals[f[2].normal_idx]) / 3;
+        Face f_out{
+            {vtxs[f[0].point_idx], vtxs[f[1].point_idx]},
+            {vtxs[f[1].point_idx], vtxs[f[2].point_idx]},
+            {vtxs[f[2].point_idx], vtxs[f[0].point_idx]} };
 
+        // Make sure that the saved face normal is aligned with the obj file normal
+        if (f_out.normal_.dot(norm) < 0)
+            f_out.reverse();
+
+        faces_.push_back(f_out);
+    }
+
+    updateCentroid();
 }
 
 ConvexPolytope::ConvexPolytope(const std::vector<Eigen::Vector3d>& points)
@@ -20,6 +45,7 @@ ConvexPolytope::ConvexPolytope(const std::vector<Eigen::Vector3d>& points)
     std::vector<std::shared_ptr<Vertex>> vertices;
     for (const auto& p : points) {
         vertices.emplace_back(p);
+        vertices_.push_back(vertices.back());
     }
 
     // Create faces
@@ -61,6 +87,7 @@ void ConvexPolytope::addVertex(const Eigen::Vector3d& point)
 
     // Add new faces for each border edge
     const auto new_vtx = std::make_shared<Vertex>(point);
+    vertices_.push_back(new_vtx);
     for (const auto& e : edges) {
         faces_.emplace_back(e,
                             Edge(e.endPoint_, new_vtx),
@@ -88,6 +115,7 @@ void ConvexPolytope::addVertexSimplex(const Eigen::Vector3d& point, unsigned int
 
     // Add three remaining faces. Reverse the edges on the first face so the normal is facing out
     const auto new_vtx = std::make_shared<Vertex>(point);
+    vertices_.push_back(new_vtx);
     for (const auto& e : faces_[0].edges_) {
         faces_.emplace_back(-e,
                             Edge(e.startPoint_, new_vtx),
@@ -124,6 +152,73 @@ void ConvexPolytope::updateCentroid()
     }
 
     centroid_valid_ = true;
+}
+
+OGLPolytope::OGLPolytope(const ObjReader& obj) : ConvexPolytope(obj)
+{
+    // Iterate through faces and find unique vertices
+    std::vector<ObjReader::objVertex> obj_vtxs;
+    for (const auto& f : obj.faces) {
+        for (const auto& v : f) {
+            auto loc = std::find(obj_vtxs.begin(), obj_vtxs.end(), v);
+            if (loc == obj_vtxs.end()) {
+                drawIndices_.push_back(obj_vtxs.size());
+                obj_vtxs.push_back(v);
+            } else {
+                drawIndices_.push_back(std::distance(obj_vtxs.begin(), loc));
+            }
+        }
+    }
+
+    // Convert obj_vtxs into drawVertices
+    for (const auto& v : obj_vtxs)
+        drawVertices_.push_back(drawVertex({obj.points[v.point_idx],
+                                            obj.tex_coords[v.tex_idx]}));
+
+    // Create OGL objects
+    QOpenGLFunctions gl_fncs(QOpenGLContext::currentContext());
+    VAO_.create();
+    VBO_.create();
+    EBO_.create();
+
+    VAO_.bind();
+    VBO_.bind();
+    EBO_.bind();
+
+    // Allocate arrays
+    VBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
+    VBO_.allocate(&drawVertices_[0], drawVertices_.size() * sizeof(drawVertex));
+
+    EBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
+    EBO_.allocate(&drawIndices_[0], drawIndices_.size() * sizeof(int));
+
+    // Enable attribute arrays (0 is vertex position, 1 is texture coord)
+    gl_fncs.glEnableVertexAttribArray(0);
+    gl_fncs.glEnableVertexAttribArray(1);
+
+    // Define position attribute
+    gl_fncs.glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(drawVertex), nullptr);
+
+    // Define texture coordinates attribute
+    gl_fncs.glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, sizeof(drawVertex),
+                                  (void*) offsetof(drawVertex, texCoords));
+
+    // Load textures
+
+    // Exit if no textures
+    if (obj.tex_file.empty()) {
+        std::cout << "No texture file found" << std::endl;
+    } else {
+        tex_ = std::make_shared<QOpenGLTexture>(QImage(QString::fromStdString(obj.tex_file)).mirrored());
+        tex_->create();
+        tex_->setWrapMode(QOpenGLTexture::Repeat);
+        tex_->setMinificationFilter(QOpenGLTexture::Nearest);
+        tex_->setMagnificationFilter(QOpenGLTexture::Linear);
+    }
+    // Unbind vertex array
+    VAO_.release();
+    VBO_.release();
+    EBO_.release();
 }
 
 } // namespace geometry
