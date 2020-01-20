@@ -184,14 +184,22 @@ public:
 
     void draw();
 
-private:
     std::vector<drawVertex> drawVertices_;
     std::vector<int> drawIndices_;
 
     // Render data
     QOpenGLVertexArrayObject VAO_;
-    QOpenGLBuffer VBO_, EBO_;
+    QOpenGLBuffer VBO_{QOpenGLBuffer::VertexBuffer}, EBO_{QOpenGLBuffer::IndexBuffer};
     std::shared_ptr<QOpenGLTexture> tex_;
+
+private:
+//    std::vector<drawVertex> drawVertices_;
+//    std::vector<int> drawIndices_;
+
+//    // Render data
+//    QOpenGLVertexArrayObject VAO_;
+//    QOpenGLBuffer VBO_{QOpenGLBuffer::VertexBuffer}, EBO_{QOpenGLBuffer::IndexBuffer};
+//    std::shared_ptr<QOpenGLTexture> tex_;
 };
 
 } // namespace geometry

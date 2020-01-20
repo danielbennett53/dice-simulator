@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Mesh.h"
+//#include "../Mesh.h"
 #include <string>
 #include <vector>
 #include <Eigen/Geometry>
@@ -36,16 +36,16 @@ double polygonArea(std::vector<Eigen::Vector2d>& points);
 std::vector<Eigen::Vector2d> planeProjection(const std::vector<Eigen::Vector3d> &points,
                                              const Eigen::Vector3d &normal);
 
-bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::Affine>& tf1,
-                      const Mesh& m2, const Eigen::Transform<double, 3, Eigen::Affine>& tf2,
-                      std::vector<Eigen::Vector3d>& iSectPoints, Eigen::Vector3d& iSectVector);
-inline bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::Affine>& tf1,
-                      const Mesh& m2, const Eigen::Transform<double, 3, Eigen::Affine>& tf2)
-{
-    std::vector<Eigen::Vector3d> iS;
-    Eigen::Vector3d iSV;
-    return meshIntersection(m1, tf1, m2, tf2, iS, iSV);
-}
+//bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::Affine>& tf1,
+//                      const Mesh& m2, const Eigen::Transform<double, 3, Eigen::Affine>& tf2,
+//                      std::vector<Eigen::Vector3d>& iSectPoints, Eigen::Vector3d& iSectVector);
+//inline bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::Affine>& tf1,
+//                      const Mesh& m2, const Eigen::Transform<double, 3, Eigen::Affine>& tf2)
+//{
+//    std::vector<Eigen::Vector3d> iS;
+//    Eigen::Vector3d iSV;
+//    return meshIntersection(m1, tf1, m2, tf2, iS, iSV);
+//}
 
 }
 

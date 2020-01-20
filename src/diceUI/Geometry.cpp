@@ -273,136 +273,136 @@ std::vector<Eigen::Vector2d> planeProjection(const std::vector<Eigen::Vector3d> 
 }
 
 
-bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::Affine>& tf1,
-                      const Mesh& m2, const Eigen::Transform<double, 3, Eigen::Affine>& tf2,
-                      std::vector<Eigen::Vector3d>& iSectPoints, Eigen::Vector3d& iSectVector)
-{
-    Eigen::Transform<double, 3, Eigen::Affine> tf2to1 = tf1.inverse() * tf2;
-    Eigen::Transform<double, 3, Eigen::Affine> tf1to2 = tf2.inverse() * tf1;
+//bool meshIntersection(const Mesh& m1, const Eigen::Transform<double, 3, Eigen::Affine>& tf1,
+//                      const Mesh& m2, const Eigen::Transform<double, 3, Eigen::Affine>& tf2,
+//                      std::vector<Eigen::Vector3d>& iSectPoints, Eigen::Vector3d& iSectVector)
+//{
+//    Eigen::Transform<double, 3, Eigen::Affine> tf2to1 = tf1.inverse() * tf2;
+//    Eigen::Transform<double, 3, Eigen::Affine> tf1to2 = tf2.inverse() * tf1;
 
-    // Check if the sphere representations of the meshes overlap
-    double meshDist = (tf2to1 * m2.centroid_ - m1.centroid_).norm();
-    if (meshDist > (m1.radius_ + m2.radius_))
-        return false;
+//    // Check if the sphere representations of the meshes overlap
+//    double meshDist = (tf2to1 * m2.centroid_ - m1.centroid_).norm();
+//    if (meshDist > (m1.radius_ + m2.radius_))
+//        return false;
 
-    // Find faces that might intersect
-    std::vector<Face> m1FaceOpts;
-    std::vector<Face> m2FaceOpts;
-    Eigen::Vector3d m1Centroidin2 = tf1to2 * m1.centroid_;
-    Eigen::Vector3d m2Centroidin1 = tf2to1 * m2.centroid_;
-    for (const auto& f : m1.faces_) {
-        // Based on the angle of the face with the other mesh, calculate the minimum distance between the centroid
-        // of the face and the surface of the mesh to guarantee no intersection
-        double face_radius = (f.centroid - m2Centroidin1).normalized().cross(f.normal).norm() * f.radius;
-        double dist = (f.centroid - m2Centroidin1).norm();
-        if (dist < (face_radius + m2.radius_))
-            m1FaceOpts.emplace_back(f);
-    }
-    for (const auto& f : m2.faces_) {
-        // Based on the angle of the face with the other mesh, calculate the minimum distance between the centroid
-        // of the face and the surface of the mesh to guarantee no intersection
-        double face_radius = (f.centroid - m1Centroidin2).normalized().cross(f.normal).norm() * f.radius;
-        double dist = (f.centroid - m1Centroidin2).norm();
-        if (dist < (face_radius + m1.radius_))
-            m2FaceOpts.emplace_back(f);
-    }
+//    // Find faces that might intersect
+//    std::vector<Face> m1FaceOpts;
+//    std::vector<Face> m2FaceOpts;
+//    Eigen::Vector3d m1Centroidin2 = tf1to2 * m1.centroid_;
+//    Eigen::Vector3d m2Centroidin1 = tf2to1 * m2.centroid_;
+//    for (const auto& f : m1.faces_) {
+//        // Based on the angle of the face with the other mesh, calculate the minimum distance between the centroid
+//        // of the face and the surface of the mesh to guarantee no intersection
+//        double face_radius = (f.centroid - m2Centroidin1).normalized().cross(f.normal).norm() * f.radius;
+//        double dist = (f.centroid - m2Centroidin1).norm();
+//        if (dist < (face_radius + m2.radius_))
+//            m1FaceOpts.emplace_back(f);
+//    }
+//    for (const auto& f : m2.faces_) {
+//        // Based on the angle of the face with the other mesh, calculate the minimum distance between the centroid
+//        // of the face and the surface of the mesh to guarantee no intersection
+//        double face_radius = (f.centroid - m1Centroidin2).normalized().cross(f.normal).norm() * f.radius;
+//        double dist = (f.centroid - m1Centroidin2).norm();
+//        if (dist < (face_radius + m1.radius_))
+//            m2FaceOpts.emplace_back(f);
+//    }
 
-    // If there are no potential face intersections
-    if (m1FaceOpts.empty() || m2FaceOpts.empty())
-        return false;
+//    // If there are no potential face intersections
+//    if (m1FaceOpts.empty() || m2FaceOpts.empty())
+//        return false;
 
-    // Stores intersection points sorted by face
-    std::vector<std::vector<Eigen::Vector3d>> m1FaceIsct(m1FaceOpts.size());
-    std::vector<std::vector<Eigen::Vector3d>> m2FaceIsct(m2FaceOpts.size());
-    // Stores list of vertices of all face options
-    std::vector<int> m1VertexOpts;
-    std::vector<int> m2VertexOpts;
+//    // Stores intersection points sorted by face
+//    std::vector<std::vector<Eigen::Vector3d>> m1FaceIsct(m1FaceOpts.size());
+//    std::vector<std::vector<Eigen::Vector3d>> m2FaceIsct(m2FaceOpts.size());
+//    // Stores list of vertices of all face options
+//    std::vector<int> m1VertexOpts;
+//    std::vector<int> m2VertexOpts;
 
-    // Check all possible collisions
-    int num_isects = 0;
-    for (unsigned int i = 0; i < m1FaceOpts.size(); ++i) {
-        std::vector<Eigen::Vector3d> m1Tri = {
-            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[0]].point,
-            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[1]].point,
-            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[2]].point };
-        m1VertexOpts.insert(m1VertexOpts.end(), m1FaceOpts[i].vertexIdxs.begin(), m1FaceOpts[i].vertexIdxs.end());
+//    // Check all possible collisions
+//    int num_isects = 0;
+//    for (unsigned int i = 0; i < m1FaceOpts.size(); ++i) {
+//        std::vector<Eigen::Vector3d> m1Tri = {
+//            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[0]].point,
+//            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[1]].point,
+//            tf1to2 * m1.vertices_[m1FaceOpts[i].vertexIdxs[2]].point };
+//        m1VertexOpts.insert(m1VertexOpts.end(), m1FaceOpts[i].vertexIdxs.begin(), m1FaceOpts[i].vertexIdxs.end());
 
-        for (unsigned int j = 0; j < m2FaceOpts.size(); ++j) {
-            if ( i == 0 ) {
-                m2VertexOpts.insert(m2VertexOpts.end(), m2FaceOpts[j].vertexIdxs.begin(), m2FaceOpts[j].vertexIdxs.end());
-            }
-            std::vector<Eigen::Vector3d> m2Tri = {
-                m2.vertices_[m2FaceOpts[j].vertexIdxs[0]].point,
-                m2.vertices_[m2FaceOpts[j].vertexIdxs[1]].point,
-                m2.vertices_[m2FaceOpts[j].vertexIdxs[2]].point };
-            // Find intersection points
-            auto isects = triTriIntersection3d(m1Tri, m2Tri);
-            num_isects += isects.size();
-            m1FaceIsct[i].insert(m1FaceIsct[i].end(), isects.begin(), isects.end());
-            m2FaceIsct[j].insert(m2FaceIsct[j].end(), isects.begin(), isects.end());
-        }
-    }
+//        for (unsigned int j = 0; j < m2FaceOpts.size(); ++j) {
+//            if ( i == 0 ) {
+//                m2VertexOpts.insert(m2VertexOpts.end(), m2FaceOpts[j].vertexIdxs.begin(), m2FaceOpts[j].vertexIdxs.end());
+//            }
+//            std::vector<Eigen::Vector3d> m2Tri = {
+//                m2.vertices_[m2FaceOpts[j].vertexIdxs[0]].point,
+//                m2.vertices_[m2FaceOpts[j].vertexIdxs[1]].point,
+//                m2.vertices_[m2FaceOpts[j].vertexIdxs[2]].point };
+//            // Find intersection points
+//            auto isects = triTriIntersection3d(m1Tri, m2Tri);
+//            num_isects += isects.size();
+//            m1FaceIsct[i].insert(m1FaceIsct[i].end(), isects.begin(), isects.end());
+//            m2FaceIsct[j].insert(m2FaceIsct[j].end(), isects.begin(), isects.end());
+//        }
+//    }
 
-    if (num_isects == 0)
-        return false;
+//    if (num_isects == 0)
+//        return false;
 
-    // Get list of unique vertices
-    std::sort(m1VertexOpts.begin(), m1VertexOpts.end());
-    std::sort(m2VertexOpts.begin(), m2VertexOpts.end());
-    m1VertexOpts.erase(std::unique(m1VertexOpts.begin(), m1VertexOpts.end()), m1VertexOpts.end());
-    m2VertexOpts.erase(std::unique(m2VertexOpts.begin(), m2VertexOpts.end()), m2VertexOpts.end());
+//    // Get list of unique vertices
+//    std::sort(m1VertexOpts.begin(), m1VertexOpts.end());
+//    std::sort(m2VertexOpts.begin(), m2VertexOpts.end());
+//    m1VertexOpts.erase(std::unique(m1VertexOpts.begin(), m1VertexOpts.end()), m1VertexOpts.end());
+//    m2VertexOpts.erase(std::unique(m2VertexOpts.begin(), m2VertexOpts.end()), m2VertexOpts.end());
 
-    // Check if any vertices of either mesh are inside the other mesh
-    for (const auto& vtx : m1VertexOpts) {
-        bool inside = true;
-        for (const auto& face : m2.faces_) {
-            if ( (m1.vertices_[vtx].point - m2.vertices_[face.vertexIdxs[0]].point).dot(face.normal) > 0 ) {
-                inside = false;
-                break;
-            }
-        }
-        if (inside) {
-            for (auto faceIdx : m1.vertices_[vtx].connectedFaces) {
-                m1FaceIsct[faceIdx].push_back(m1.vertices_[vtx].point);
-            }
-        }
-    }
-    for (const auto& vtx : m2VertexOpts) {
-        bool inside = true;
-        for (const auto& face : m1.faces_) {
-            if ( (m2.vertices_[vtx].point - m1.vertices_[face.vertexIdxs[0]].point).dot(face.normal) > 0 ) {
-                inside = false;
-                break;
-            }
-        }
-        if (inside) {
-            for (auto faceIdx : m2.vertices_[vtx].connectedFaces) {
-                m2FaceIsct[faceIdx].push_back(m2.vertices_[vtx].point);
-            }
-        }
-    }
+//    // Check if any vertices of either mesh are inside the other mesh
+//    for (const auto& vtx : m1VertexOpts) {
+//        bool inside = true;
+//        for (const auto& face : m2.faces_) {
+//            if ( (m1.vertices_[vtx].point - m2.vertices_[face.vertexIdxs[0]].point).dot(face.normal) > 0 ) {
+//                inside = false;
+//                break;
+//            }
+//        }
+//        if (inside) {
+//            for (auto faceIdx : m1.vertices_[vtx].connectedFaces) {
+//                m1FaceIsct[faceIdx].push_back(m1.vertices_[vtx].point);
+//            }
+//        }
+//    }
+//    for (const auto& vtx : m2VertexOpts) {
+//        bool inside = true;
+//        for (const auto& face : m1.faces_) {
+//            if ( (m2.vertices_[vtx].point - m1.vertices_[face.vertexIdxs[0]].point).dot(face.normal) > 0 ) {
+//                inside = false;
+//                break;
+//            }
+//        }
+//        if (inside) {
+//            for (auto faceIdx : m2.vertices_[vtx].connectedFaces) {
+//                m2FaceIsct[faceIdx].push_back(m2.vertices_[vtx].point);
+//            }
+//        }
+//    }
 
-    // Find area of intersectioni
-    iSectVector.setZero();
-    iSectPoints.clear();
-    for (unsigned int i = 0; i < m1FaceIsct.size(); ++i) {
-        if (m1FaceIsct[i].size() < 3)
-            continue;
-        auto pts = planeProjection(m1FaceIsct[i], m1.faces_[i].normal);
-        iSectVector += m1.faces_[i].normal * polygonArea(pts);
-    }
-    for (unsigned int i = 0; i < m2FaceIsct.size(); ++i) {
-        if (m2FaceIsct[i].size() < 3)
-            continue;
-        auto pts = planeProjection(m2FaceIsct[i], m2.faces_[i].normal);
-        iSectVector += m2.faces_[i].normal * polygonArea(pts);
-    }
+//    // Find area of intersectioni
+//    iSectVector.setZero();
+//    iSectPoints.clear();
+//    for (unsigned int i = 0; i < m1FaceIsct.size(); ++i) {
+//        if (m1FaceIsct[i].size() < 3)
+//            continue;
+//        auto pts = planeProjection(m1FaceIsct[i], m1.faces_[i].normal);
+//        iSectVector += m1.faces_[i].normal * polygonArea(pts);
+//    }
+//    for (unsigned int i = 0; i < m2FaceIsct.size(); ++i) {
+//        if (m2FaceIsct[i].size() < 3)
+//            continue;
+//        auto pts = planeProjection(m2FaceIsct[i], m2.faces_[i].normal);
+//        iSectVector += m2.faces_[i].normal * polygonArea(pts);
+//    }
 
-    if (iSectVector.norm() < 1e-6)
-        return false;
+//    if (iSectVector.norm() < 1e-6)
+//        return false;
 
-    std::cout << "Isect vector: " << std::endl << iSectVector << std::endl << std::endl;
-    return true;
-}
+//    std::cout << "Isect vector: " << std::endl << iSectVector << std::endl << std::endl;
+//    return true;
+//}
 
 } //namespace geometry

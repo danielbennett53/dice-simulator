@@ -25,8 +25,8 @@ SOURCES += \
     #../shaders/fragment.glsl \
     #../shaders/vertex.glsl \
     #../shaders/fragment_color.glsl \
-    ../Mesh.cpp \
-    ../SolidBody.cpp
+    #../Mesh.cpp \
+   # ../SolidBody.cpp
 
 HEADERS += \
     ConvexPolytope.h \
@@ -34,8 +34,8 @@ HEADERS += \
     Geometry.h \
     ObjReader.h \
     mainwindow.h \
-    ../Mesh.h \
-    ../SolidBody.h
+    #../Mesh.h \
+    #../SolidBody.h
 
 LIBS += -lnlopt
 

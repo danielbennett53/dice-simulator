@@ -12,7 +12,7 @@ ConvexPolytope::ConvexPolytope(const ObjReader& obj)
     // Make pointers for each vertex
     std::vector<std::shared_ptr<Vertex>> vtxs;
     for (const auto& p : obj.points) {
-        vtxs.emplace_back(p);
+        vtxs.push_back(std::make_shared<Vertex>(p));
         vertices_.push_back(vtxs.back());
     }
     for (const auto& f : obj.faces) {
@@ -44,7 +44,7 @@ ConvexPolytope::ConvexPolytope(const std::vector<Eigen::Vector3d>& points)
     // Create vertices
     std::vector<std::shared_ptr<Vertex>> vertices;
     for (const auto& p : points) {
-        vertices.emplace_back(p);
+        vertices.push_back(std::make_shared<Vertex>(p));
         vertices_.push_back(vertices.back());
     }
 
@@ -176,7 +176,8 @@ OGLPolytope::OGLPolytope(const ObjReader& obj) : ConvexPolytope(obj)
                                             obj.tex_coords[v.tex_idx]}));
 
     // Create OGL objects
-    QOpenGLFunctions gl_fncs(QOpenGLContext::currentContext());
+    auto a = QOpenGLContext::currentContext();
+    QOpenGLFunctions* gl_fncs = a->functions();
     VAO_.create();
     VBO_.create();
     EBO_.create();
@@ -193,14 +194,14 @@ OGLPolytope::OGLPolytope(const ObjReader& obj) : ConvexPolytope(obj)
     EBO_.allocate(&drawIndices_[0], drawIndices_.size() * sizeof(int));
 
     // Enable attribute arrays (0 is vertex position, 1 is texture coord)
-    gl_fncs.glEnableVertexAttribArray(0);
-    gl_fncs.glEnableVertexAttribArray(1);
+    gl_fncs->glEnableVertexAttribArray(0);
+    gl_fncs->glEnableVertexAttribArray(1);
 
     // Define position attribute
-    gl_fncs.glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(drawVertex), nullptr);
+    gl_fncs->glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(drawVertex), nullptr);
 
     // Define texture coordinates attribute
-    gl_fncs.glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, sizeof(drawVertex),
+    gl_fncs->glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, sizeof(drawVertex),
                                   (void*) offsetof(drawVertex, texCoords));
 
     // Load textures
@@ -219,6 +220,45 @@ OGLPolytope::OGLPolytope(const ObjReader& obj) : ConvexPolytope(obj)
     VAO_.release();
     VBO_.release();
     EBO_.release();
+} // OGLPolytope
+
+
+void ConvexPolytope::draw()
+{
+    // Get vector of vertices
+    std::vector<Eigen::Vector3d> vertices;
+    for (const auto& f : faces_) {
+        vertices.push_back(f.edges_[0].startPoint_->getPos());
+        vertices.push_back(f.edges_[1].startPoint_->getPos());
+        vertices.push_back(f.edges_[2].startPoint_->getPos());
+    }
+    QOpenGLBuffer buf;
+    buf.create();
+    buf.bind();
+    buf.setUsagePattern(QOpenGLBuffer::StreamDraw);
+    buf.allocate(&vertices[0], vertices.size() * sizeof(vertices[0]));
+    QOpenGLFunctions* gl_fncs = QOpenGLContext::currentContext()->functions();
+    gl_fncs->glEnableVertexAttribArray(0);
+    gl_fncs->glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(vertices[0]), nullptr);
+    gl_fncs->glDrawArrays(GL_TRIANGLES, 0, (GLsizei) vertices.size());
+    buf.release();
+    buf.destroy();
+}
+
+
+void OGLPolytope::draw()
+{
+    QOpenGLFunctions* gl_fncs = QOpenGLContext::currentContext()->functions();
+    VAO_.bind();
+    VBO_.bind();
+    EBO_.bind();
+    tex_->bind();
+    gl_fncs->glDrawElements(GL_TRIANGLES, (GLsizei) drawIndices_.size(), GL_UNSIGNED_INT,
+                   nullptr);
+    VAO_.release();
+    VBO_.release();
+    EBO_.release();
+    tex_->release();
 }
 
 } // namespace geometry

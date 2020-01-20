@@ -22,7 +22,7 @@ public:
             normal_idx = idxs[2];
         }
 
-        bool operator==(objVertex& obj) {
+        bool operator==(const objVertex& obj) const {
             return ((point_idx == obj.point_idx) && (tex_idx == obj.tex_idx));
         }
     };

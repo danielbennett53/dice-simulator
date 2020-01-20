@@ -6,8 +6,10 @@
 #include <QOpenGLShaderProgram>
 #include <QMatrix4x4>
 #include <QOpenGLBuffer>
-#include "../Mesh.h"
-#include "../SolidBody.h"
+//#include "../Mesh.h"
+//#include "../SolidBody.h"
+#include "ConvexPolytope.h"
+#include "ObjReader.h"
 #include <vector>
 #include <memory>
 #include <QBasicTimer>
@@ -21,12 +23,6 @@ protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;
     void paintGL() override;
-    void addMesh(Mesh &m);
-    void loadTextures(Mesh &m);
-    void drawMesh(Mesh &m,
-                  const Eigen::Transform<double, 3, Eigen::Affine> &mesh_tf =
-                  Eigen::Transform<double, 3, Eigen::Affine>::Identity(),
-                  const QVector4D &color = QVector4D(1.0, 1.0, 1.0, 1.0));
     void updateCameraView(void);
     void mouseMoveEvent(QMouseEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
@@ -58,6 +54,7 @@ protected:
     int w_, h_;
     bool paused_ = true;
 
-    std::vector<SolidBody> bodies_;
+//    std::vector<SolidBody> bodies_;
+    std::unique_ptr<geometry::ConvexPolytope> shape;
     QBasicTimer timer_;
 };

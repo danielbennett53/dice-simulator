@@ -26,9 +26,7 @@ public:
                            const Eigen::Vector3d &rayVector,
                            Eigen::Vector3d &intersectionPoint);
 
-    // Define mesh vertices and textures
-    std::vector<drawVertex> drawVertices_;
-    std::vector<int> drawIndices_;
+    // Define mesh vertices and textures    
     std::vector<geometry::vertex> vertices_;
     std::vector<Face> faces_;
 
@@ -37,9 +35,7 @@ public:
     double radius_ = 0.0;
 
     //  Render data
-    QOpenGLVertexArrayObject VAO_;
-    QOpenGLBuffer VBO_, EBO_;
-    std::shared_ptr<QOpenGLTexture> tex_;
+    
 
     std::string textureFilepath_;
 
