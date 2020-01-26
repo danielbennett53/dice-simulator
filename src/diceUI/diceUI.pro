@@ -20,6 +20,8 @@ SOURCES += \
     DiceVisualizer.cpp \
     Geometry.cpp \
     ObjReader.cpp \
+    Plane.cpp \
+    Shape.cpp \
     main.cpp \
     mainwindow.cpp \
     #../shaders/fragment.glsl \
@@ -33,6 +35,8 @@ HEADERS += \
     DiceVisualizer.h \
     Geometry.h \
     ObjReader.h \
+    Plane.h \
+    Shape.h \
     mainwindow.h \
     #../Mesh.h \
     #../SolidBody.h

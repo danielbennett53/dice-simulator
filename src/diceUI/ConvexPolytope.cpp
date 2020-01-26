@@ -95,6 +95,7 @@ void ConvexPolytope::addVertex(const Eigen::Vector3d& point)
     }
 
     centroid_valid_ = false;
+    render_data_.release();
 }
 
 
@@ -123,6 +124,7 @@ void ConvexPolytope::addVertexSimplex(const Eigen::Vector3d& point, unsigned int
     }
 
     centroid_valid_ = false;
+    render_data_.release();
 }
 
 
@@ -154,77 +156,14 @@ void ConvexPolytope::updateCentroid()
     centroid_valid_ = true;
 }
 
-OGLPolytope::OGLPolytope(const ObjReader& obj) : ConvexPolytope(obj)
-{
-    // Iterate through faces and find unique vertices
-    std::vector<ObjReader::objVertex> obj_vtxs;
-    for (const auto& f : obj.faces) {
-        for (const auto& v : f) {
-            auto loc = std::find(obj_vtxs.begin(), obj_vtxs.end(), v);
-            if (loc == obj_vtxs.end()) {
-                drawIndices_.push_back(obj_vtxs.size());
-                obj_vtxs.push_back(v);
-            } else {
-                drawIndices_.push_back(std::distance(obj_vtxs.begin(), loc));
-            }
-        }
-    }
-
-    // Convert obj_vtxs into drawVertices
-    for (const auto& v : obj_vtxs)
-        drawVertices_.push_back(drawVertex({obj.points[v.point_idx],
-                                            obj.tex_coords[v.tex_idx]}));
-
-    // Create OGL objects
-    auto a = QOpenGLContext::currentContext();
-    QOpenGLFunctions* gl_fncs = a->functions();
-    VAO_.create();
-    VBO_.create();
-    EBO_.create();
-
-    VAO_.bind();
-    VBO_.bind();
-    EBO_.bind();
-
-    // Allocate arrays
-    VBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-    VBO_.allocate(&drawVertices_[0], drawVertices_.size() * sizeof(drawVertex));
-
-    EBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-    EBO_.allocate(&drawIndices_[0], drawIndices_.size() * sizeof(int));
-
-    // Enable attribute arrays (0 is vertex position, 1 is texture coord)
-    gl_fncs->glEnableVertexAttribArray(0);
-    gl_fncs->glEnableVertexAttribArray(1);
-
-    // Define position attribute
-    gl_fncs->glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(drawVertex), nullptr);
-
-    // Define texture coordinates attribute
-    gl_fncs->glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, sizeof(drawVertex),
-                                  (void*) offsetof(drawVertex, texCoords));
-
-    // Load textures
-
-    // Exit if no textures
-    if (obj.tex_file.empty()) {
-        std::cout << "No texture file found" << std::endl;
-    } else {
-        tex_ = std::make_shared<QOpenGLTexture>(QImage(QString::fromStdString(obj.tex_file)).mirrored());
-        tex_->create();
-        tex_->setWrapMode(QOpenGLTexture::Repeat);
-        tex_->setMinificationFilter(QOpenGLTexture::Nearest);
-        tex_->setMagnificationFilter(QOpenGLTexture::Linear);
-    }
-    // Unbind vertex array
-    VAO_.release();
-    VBO_.release();
-    EBO_.release();
-} // OGLPolytope
-
 
 void ConvexPolytope::draw()
 {
+    if (render_data_) {
+        render_data_->draw();
+        return;
+    }
+
     // Get vector of vertices
     std::vector<Eigen::Vector3d> vertices;
     for (const auto& f : faces_) {
@@ -232,6 +171,8 @@ void ConvexPolytope::draw()
         vertices.push_back(f.edges_[1].startPoint_->getPos());
         vertices.push_back(f.edges_[2].startPoint_->getPos());
     }
+
+    // Create temporary OGL buffer to draw vertices
     QOpenGLBuffer buf;
     buf.create();
     buf.bind();
@@ -243,22 +184,34 @@ void ConvexPolytope::draw()
     gl_fncs->glDrawArrays(GL_TRIANGLES, 0, (GLsizei) vertices.size());
     buf.release();
     buf.destroy();
-}
+} // draw()
 
 
-void OGLPolytope::draw()
+bool ConvexPolytope::support(Eigen::Vector3d &vector, Eigen::Vector3d& out_point) const
 {
-    QOpenGLFunctions* gl_fncs = QOpenGLContext::currentContext()->functions();
-    VAO_.bind();
-    VBO_.bind();
-    EBO_.bind();
-    tex_->bind();
-    gl_fncs->glDrawElements(GL_TRIANGLES, (GLsizei) drawIndices_.size(), GL_UNSIGNED_INT,
-                   nullptr);
-    VAO_.release();
-    VBO_.release();
-    EBO_.release();
-    tex_->release();
+    unsigned int i = 0;
+    auto curr_vtx = static_cast<std::shared_ptr<Vertex>>(vertices_[0]);
+    double max_dot_product = vector.dot(curr_vtx->getPos());
+    while (++i < vertices_.size()) {
+        auto connections = curr_vtx->getConnections();
+        bool changed = false;
+        for (const auto& c : connections) {
+            auto new_vtx = static_cast<std::shared_ptr<Vertex>>(c);
+            double new_dot_product = new_vtx->getPos().dot(curr_vtx->getPos());
+            if (new_dot_product > max_dot_product) {
+                max_dot_product = new_dot_product;
+                curr_vtx = new_vtx;
+                changed = true;
+            }
+        }
+        // Return if no adjacent vertices have higher dot product
+        if (!changed) {
+            out_point = curr_vtx->getPos();
+            return true;
+        }
+    }
+    return false;
 }
+
 
 } // namespace geometry
