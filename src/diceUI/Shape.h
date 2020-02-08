@@ -127,6 +127,8 @@ public:
     struct drawVertex {
         Eigen::Vector3d position;
         Eigen::Vector2d texCoords;
+
+        drawVertex(Eigen::Vector3d pos, Eigen::Vector2d tex_coord) : position{pos}, texCoords{tex_coord} {};
     };
 
     OGLRenderData(const ObjReader& obj);
@@ -139,7 +141,7 @@ public:
         VAO_.destroy();
         VBO_.destroy();
         EBO_.destroy();
-        tex_->destroy();
+//        tex_->destroy();
     }
 
     std::vector<drawVertex> drawVertices_;
@@ -158,36 +160,46 @@ private:
 
 class Shape {
 public:
-    Shape();
+    Shape() {}
+    ~Shape() {}
 
-    virtual void draw();
+    virtual void draw() {};
 
-    virtual bool interiorPoint(Eigen::Vector3d& point, double radius);
+    // Outputs true if the sphere given by point and radius intersects the simplified
+    // geometry of this shape
+    virtual bool isectPossible(const Eigen::Vector3d& point, double radius) const
+    {
+        return (point - centroid_).norm() < (radius + radius_);
+    }
 
-    virtual bool support(Eigen::Vector3d& vector, Eigen::Vector3d& out_point) const;
+    virtual Eigen::Vector3d support(const Eigen::Vector3d& dir) const
+    {
+        return (centroid_ + radius_ * dir);
+    }
 
-    const Eigen::Vector3d& getCentroid() {
-        if (centroid_valid_)
-            return centroid_;
-        updateCentroid();
+    virtual bool rayIntersection(const Eigen::Vector3d& origin, const Eigen::Vector3d& dir,
+                                 Eigen::Vector3d& intersectionPoint);
+
+    const Eigen::Vector3d& getCentroid() const {
         return centroid_;
     }
 
-    double getRadius() {
-        if (centroid_valid_)
-            return radius_;
-        updateCentroid();
+    double getRadius() const {
         return radius_;
     }
 
 protected:
     Eigen::Vector3d centroid_ = Eigen::Vector3d::Zero();
-    bool centroid_valid_ = false;
     double radius_ = 0.0;
 
-    virtual void updateCentroid();
+    virtual void updateCentroid() {};
 
     std::unique_ptr<OGLRenderData> render_data_;
 }; // Shape
+
+//Shape operator*(const Eigen::Transform<double, 3, Eigen::Affine> tf, const Shape& s)
+//{
+
+//}
 
 } // namespace geometry

@@ -54,7 +54,7 @@ void OGLRenderData::setRenderData(const std::string tex_file)
     gl_fncs->glEnableVertexAttribArray(1);
 
     // Define position attribute
-    gl_fncs->glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(drawVertex), nullptr);
+    gl_fncs->glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(drawVertex), (void*) offsetof(drawVertex, position));
 
     // Define texture coordinates attribute
     gl_fncs->glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, sizeof(drawVertex),
@@ -92,6 +92,32 @@ void OGLRenderData::draw()
     VBO_.release();
     EBO_.release();
     tex_->release();
+}
+
+bool Shape::rayIntersection(const Eigen::Vector3d& origin,
+                            const Eigen::Vector3d& dir,
+                            Eigen::Vector3d& intersectionPoint)
+{
+    // Find closest approach point
+    double t = (centroid_ - origin).dot(dir) / (dir.dot(dir));
+    if (t < 0)
+        return false;
+    Eigen::Vector3d p = origin + t * dir;
+    if (p.norm() > radius_)
+        return false;
+
+    // Find point of first intersection with sphere
+    double a = dir.squaredNorm();
+    double b = 2 * (origin - centroid_).dot(dir);
+    double c = (origin - centroid_).squaredNorm() - radius_*radius_;
+
+    double t1 = (-b + sqrt(b*b - 4*a*c) ) / (2 * a);
+    double t2 = (-b - sqrt(b*b - 4*a*c) ) / (2 * a);
+
+    t = (t1 < t2) && (t1 > 0) ? t1 : t2;
+
+    intersectionPoint = origin + t * dir;
+    return true;
 }
 
 } // namespace geometry

@@ -45,7 +45,7 @@ Plane::Plane(const Eigen::Vector3d normal, const Eigen::Vector3d center,
 }
 
 
-bool Plane::support(Eigen::Vector3d& vector, Eigen::Vector3d& out_point) const
+Eigen::Vector3d Plane::support(const Eigen::Vector3d& vector) const
 {
     // Add depth to each vertex in the direction of the normal
     double max_dot_product = -HUGE_VAL;
@@ -58,7 +58,31 @@ bool Plane::support(Eigen::Vector3d& vector, Eigen::Vector3d& out_point) const
             max_dot_product = new_dot_product;
         }
     }
-    out_point = max_vertex;
+    return max_vertex;
+}
+
+
+void Plane::updateCentroid()
+{
+    centroid_.setZero();
+    for (const auto& v : vertices_)
+        centroid_ += v;
+    centroid_ /= vertices_.size();
+}
+
+
+bool Plane::rayIntersection(const Eigen::Vector3d& origin, const Eigen::Vector3d& dir,
+                            Eigen::Vector3d& intersectionPoint)
+{
+    // Make sure ray is not parallel
+    if (fabs(dir.dot(normal_)) < 1e-6)
+        return false;
+    // Find intersection point
+    double t = (origin - vertices_[0]).dot(normal_) / (dir.dot(normal_));
+    if (t < 0)
+        return false;
+
+    intersectionPoint = origin + t * dir;
     return true;
 }
 

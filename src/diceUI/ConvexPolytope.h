@@ -10,7 +10,8 @@
 
 namespace geometry {
 
-class ConvexPolytope : Shape {
+class ConvexPolytope : public Shape
+{
 public:
     ConvexPolytope(const ObjReader& obj);
     ConvexPolytope(const std::vector<Eigen::Vector3d>& points);
@@ -25,31 +26,51 @@ public:
     // Draws polytope
     void draw() override;
 
-    // Checks if point is within the specified distance of the bounding sphere
-    bool interiorPoint(Eigen::Vector3d& point, double radius) override {
+    bool isectPossible(const Eigen::Vector3d& point, double radius) const override {
         return ((point - getCentroid()).norm() < (radius + getRadius()));
     };
 
+    bool rayIntersection(const Eigen::Vector3d& origin,
+                         const Eigen::Vector3d& dir,
+                         Eigen::Vector3d& intersectionPoint) override;
+
     // Support function for GJK/EP algorithm
-    bool support(Eigen::Vector3d& vector, Eigen::Vector3d& out_point) const override;
+    Eigen::Vector3d support(const Eigen::Vector3d& vector) const override;
 
     // Fetches vertices list
-    const std::vector<std::weak_ptr<Vertex>>& getVertices() {
+    const std::vector<std::shared_ptr<Vertex>> getVertices() {
+        std::vector<std::shared_ptr<Vertex>> out;
         unsigned int i = 0;
         while (i < vertices_.size()) {
             if (vertices_[i].expired())
                 remove_at(vertices_, i);
-            else
+            else {
+                out.emplace_back(vertices_[i]);
                 ++i;
+            }
         }
-        return vertices_;
+        return out;
     }
 
     std::vector<Face> faces_;
 
-private:
+protected:
+    ConvexPolytope() {}
     std::vector<std::weak_ptr<Vertex>> vertices_;
     void updateCentroid() override;
+};
+
+
+class Simplex : public ConvexPolytope
+{
+public:
+    Simplex() : ConvexPolytope() {}
+    Simplex(const std::vector<Eigen::Vector3d>& points) : ConvexPolytope(points) {}
+
+    void addVertex(const Eigen::Vector3d& point, unsigned int face_to_keep = 0);
+
+    // Given a simplex, returns the vector of the shortest distance between simplex and origin
+    bool nearestSimplex(Eigen::Vector3d& new_dir, unsigned int& nearest_face);
 };
 
 

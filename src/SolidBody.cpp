@@ -46,11 +46,10 @@ double friction_constraint(unsigned int n, const double *x, double *grad, void *
     return (x[data->idx]*data->sign - mu*x[data->normal_idx]);
 }
 
-#define MESH Mesh::options.at(mesh_idx_)
 
-SolidBody::SolidBody(Mesh::meshType mesh_idx, double density)
+SolidBody::SolidBody(std::shared_ptr<geometry::ConvexPolytope> shape, double density)
 {
-    mesh_idx_ = mesh_idx;
+    shape_ = shape;
     vel_ = Eigen::Matrix<double, 6, 1>::Zero();
     calculatePhysicalProperties(density);
 }
@@ -88,10 +87,10 @@ void SolidBody::step()
     double B = 2*(1+e)*(1/tau);
     double K = (1+e)/(tau*tau);
     long nrows = 0;
-
-    for (const auto &vertex : MESH.vertices_) {
+    auto temp_shape = &(*shape_);
+    for (const auto &vertex : dynamic_cast<geometry::ConvexPolytope*>(temp_shape)->getVertices()) {
         Eigen::Quaterniond v_q;
-        v_q.vec() << vertex.point[0], vertex.point[1], vertex.point[2];
+        v_q.vec() << vertex->getPos()[0], vertex->getPos()[1], vertex->getPos()[2];
         v_q.w() = 0;
         Eigen::Quaterniond tfVertex_q = orientation_ * v_q * orientation_.inverse();
         Eigen::Vector3d tfVertex = tfVertex_q.vec();
@@ -218,14 +217,15 @@ void SolidBody::calculatePhysicalProperties(float density)
     auto centroid = Eigen::Vector3d(0.0, 0.0, 0.0);
     M_ = Eigen::Matrix<double, 6, 6>::Zero();
 
+    auto temp_shape = dynamic_cast<geometry::ConvexPolytope*>(&(*shape_));
     // Pick first vertex as starting point to make sure it is within the mesh
-    auto refPoint =MESH.vertices_[0].point;
+    auto refPoint = temp_shape->getVertices()[0]->getPos();
 
     // Calculate volume and centroid
-    for (const auto& face : MESH.faces_) {
-        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]].point;
-        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]].point;
-        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]].point;
+    for (const auto& face : temp_shape->faces_) {
+        Eigen::Vector3d a = face.edges_[0].startPoint_->getPos();
+        Eigen::Vector3d b = face.edges_[1].startPoint_->getPos();
+        Eigen::Vector3d c = face.edges_[2].startPoint_->getPos();
 
         double temp_volume = fabs(((a - refPoint).cross(b - refPoint)).dot(c - refPoint) / 6.0);
         auto temp_centroid = Eigen::Vector3d(a[0] + b[0] + c[0] + refPoint[0],
@@ -250,10 +250,10 @@ void SolidBody::calculatePhysicalProperties(float density)
     float Ic_p = 0.0;
 
     // Calculate intertia tensor
-    for (const auto& face : MESH.faces_) {
-        Eigen::Vector3d a = MESH.vertices_[face.vertexIdxs[0]].point - centroid;
-        Eigen::Vector3d b = MESH.vertices_[face.vertexIdxs[1]].point - centroid;
-        Eigen::Vector3d c = MESH.vertices_[face.vertexIdxs[2]].point - centroid;
+    for (const auto& face : temp_shape->faces_) {
+        Eigen::Vector3d a = face.edges_[0].startPoint_->getPos() - centroid;
+        Eigen::Vector3d b = face.edges_[1].startPoint_->getPos() - centroid;
+        Eigen::Vector3d c = face.edges_[2].startPoint_->getPos() - centroid;
 
         double vol = fabs(a.cross(b).dot(c)) / 6.0f;
         Ia += density * vol *
@@ -289,5 +289,3 @@ void SolidBody::calculatePhysicalProperties(float density)
     M_.topLeftCorner(3,3) = I;
     M_.bottomRightCorner(3,3) = density * volume * Eigen::Matrix3d::Identity();
 }
-
-#undef MESH

@@ -3,13 +3,13 @@
 #include <vector>
 #include <memory>
 #include <eigen3/Eigen/Geometry>
-#include "Mesh.h"
+#include "ConvexPolytope.h"
 
 
 class SolidBody {
 
 public:
-    explicit SolidBody(Mesh::meshType mesh_idx, double density = 1.0);
+    explicit SolidBody(std::shared_ptr<geometry::ConvexPolytope> shape, double density = 1.0);
     SolidBody(const std::string& objFile, double density = 1.0);
     void step();
     void updatePosition();
@@ -17,7 +17,7 @@ public:
 
     Eigen::Transform<double, 3, Eigen::Affine> tf_;
     Eigen::Matrix<double, 6, 1> vel_;
-    Mesh::meshType mesh_idx_;
+    std::shared_ptr<geometry::Shape> shape_;
     bool selected_ = false;
 
 private:

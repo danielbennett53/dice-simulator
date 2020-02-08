@@ -6,7 +6,7 @@
 
 namespace geometry {
 
-class Plane : Shape
+class Plane : public Shape
 {
 public:
     Plane(const ObjReader& obj);
@@ -16,13 +16,15 @@ public:
 
     void draw() override { render_data_->draw(); };
 
-    // Checks if point is within the specified distance of the bounding sphere
-    bool interiorPoint(Eigen::Vector3d& point, double radius) override {
+    bool isectPossible(const Eigen::Vector3d& point, double radius) const override {
         return ((point - getCentroid()).dot(normal_) < (radius));
     };
 
     // Support function for GJK/EP algorithm
-    bool support(Eigen::Vector3d& vector, Eigen::Vector3d& out_point) const override;
+    Eigen::Vector3d support(const Eigen::Vector3d& dir) const override;
+
+    bool rayIntersection(const Eigen::Vector3d& origin, const Eigen::Vector3d& dir,
+                         Eigen::Vector3d& intersectionPoint) override;
 
     Eigen::Vector3d normal_;
     std::vector<Eigen::Vector3d> vertices_;

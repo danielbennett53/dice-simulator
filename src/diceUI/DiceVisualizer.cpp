@@ -1,5 +1,7 @@
 #include "DiceVisualizer.h"
 #include "Geometry.h"
+#include "Plane.h"
+#include "ObjReader.h"
 #include <QtMath>
 #include <iostream>
 #include <QMatrix4x4>
@@ -19,10 +21,14 @@ void DiceVisualizer::timerEvent(QTimerEvent *e)
 void DiceVisualizer::printMatrix(const QMatrix4x4 &mat, const std::string &name)
 {
     std::cout << name << std::endl;
-    std::cout << mat(0,0) << " | " << mat(0,1) << " | " << mat(0,2) << " | " << mat(0,3) << std::endl;
-    std::cout << mat(1,0) << " | " << mat(1,1) << " | " << mat(1,2) << " | " << mat(1,3) << std::endl;
-    std::cout << mat(2,0) << " | " << mat(2,1) << " | " << mat(2,2) << " | " << mat(2,3) << std::endl;
-    std::cout << mat(3,0) << " | " << mat(3,1) << " | " << mat(3,2) << " | " << mat(3,3) << std::endl << std::endl;
+    std::cout << mat(0,0) << " | " << mat(0,1) << " | " <<
+                 mat(0,2) << " | " << mat(0,3) << std::endl;
+    std::cout << mat(1,0) << " | " << mat(1,1) << " | " <<
+                 mat(1,2) << " | " << mat(1,3) << std::endl;
+    std::cout << mat(2,0) << " | " << mat(2,1) << " | " <<
+                 mat(2,2) << " | " << mat(2,3) << std::endl;
+    std::cout << mat(3,0) << " | " << mat(3,1) << " | " <<
+                 mat(3,2) << " | " << mat(3,3) << std::endl << std::endl;
 
 }
 
@@ -41,11 +47,9 @@ void DiceVisualizer::initializeGL()
     glEnable(GL_DEPTH_TEST);
     glDepthMask(true);
 
-//    for (auto &mesh : Mesh::options) {
-//        addMesh(mesh.second);
-//    }
     makeCurrent();
-    shape = std::make_unique<geometry::ConvexPolytope>(ObjReader("/home/daniel/github/dice-simulator/resources/floor.obj"));
+    shape = std::make_unique<geometry::Plane>(
+                ObjReader("/home/daniel/github/dice-simulator/resources/floor.obj"));
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     QSurfaceFormat format;
@@ -54,21 +58,24 @@ void DiceVisualizer::initializeGL()
     format.setSamples(0);
     QSurfaceFormat::setDefaultFormat(format);
 
-//    auto t1 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-//    auto t2 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-//    auto t3 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-//    t1.translate(Eigen::Vector3d(-3.0, 4.0, 0.0));
-//    Eigen::AngleAxisd rot1(1.5, Eigen::Vector3d(1, 0, 0));
-//    t1 = t1 * rot1;
-//    t2.translate(Eigen::Vector3d(-0.0, 4.0, 0.0));
-//    t3.translate(Eigen::Vector3d(3.0, 4.0, 0.0));
-//    bodies_.emplace_back(Mesh::D4);
-//    bodies_.emplace_back(Mesh::D6);
-//    bodies_.emplace_back(Mesh::D20);
-//    bodies_[0].setPosition(t1);
-//    bodies_[1].setPosition(t2);
-//    bodies_[2].setPosition(t3);
-//    bodies_[1].vel_ << 1.0, 2.0, 4.0, 0.5, 0.3, 0.1;
+    auto t1 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+    auto t2 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+    auto t3 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+    t1.translate(Eigen::Vector3d(-3.0, 4.0, 0.0));
+    Eigen::AngleAxisd rot1(1.5, Eigen::Vector3d(1, 0, 0));
+    t1 = t1 * rot1;
+    t2.translate(Eigen::Vector3d(-0.0, 4.0, 0.0));
+    t3.translate(Eigen::Vector3d(3.0, 4.0, 0.0));
+    auto d4 = std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj"));
+    auto d6 = std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj"));
+    auto d20 = std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj"));
+    bodies_.emplace_back(d4);
+    bodies_.emplace_back(d6);
+    bodies_.emplace_back(d20);
+    bodies_[0].setPosition(t1);
+    bodies_[1].setPosition(t2);
+    bodies_[2].setPosition(t3);
+    bodies_[1].vel_ << 1.0, 2.0, 4.0, 0.5, 0.3, 0.1;
     // Use QBasicTimer because its faster than QTimer
     timer_.start(12, this);
 }
@@ -120,13 +127,13 @@ void DiceVisualizer::resizeGL(int w, int h)
 
 void DiceVisualizer::paintGL()
 {
-//    if (!paused_) {
-//        for (int i = 0; i < 12; ++i) {
-//            for (auto &body : bodies_) {
-//                body.step();
-//            }
-//        }
-//    }
+    if (!paused_) {
+        for (int i = 0; i < 12; ++i) {
+            for (auto &body : bodies_) {
+                body.step();
+            }
+        }
+    }
 
     makeCurrent();
     updateCameraView();
@@ -142,8 +149,17 @@ void DiceVisualizer::paintGL()
     QMatrix4x4 tf;
     tf.setToIdentity();
     shader_.setUniformValue(uniforms_.model_tf, tf);
-    shader_.setUniformValue(uniforms_.color, QVector4D{0.0, 0.7, 0.3, 1.0});
+    shader_.setUniformValue(uniforms_.color, QVector4D{1.0, 1.0, 1.0, 1.0});
     shape->draw();
+
+    for (auto& b : bodies_) {
+        shader_.setUniformValue(uniforms_.model_tf, eigenTFToQMatrix4x4(b.tf_));
+        if (b.selected_)
+            shader_.setUniformValue(uniforms_.color, QVector4D{0.0, 0.7, 0.3, 1.0});
+        else
+            shader_.setUniformValue(uniforms_.color, QVector4D{1.0, 1.0, 1.0, 1.0});
+        b.shape_->draw();
+    }
     shader_.release();
 }
 
@@ -211,21 +227,21 @@ void DiceVisualizer::updateCameraView()
     cam_view_.lookAt(cam_pos, cam_target, up);
 
     // Move dice
-//    if (buttons_pressed_.testFlag(Qt::LeftButton)) {
-//        for (auto& b : bodies_) {
-//            if (b.selected_) {
-//                auto translate = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-//                Eigen::Matrix3d rot;
-//                auto R = cam_view_.inverted();
-//                rot << R(0,0), R(0,1), R(0,2),
-//                       R(1,0), R(1,1), R(2,2),
-//                       R(2,0), R(2,1), R(2,2);
+    if (buttons_pressed_.testFlag(Qt::LeftButton)) {
+        for (auto& b : bodies_) {
+            if (b.selected_) {
+                auto translate = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+                Eigen::Matrix3d rot;
+                auto R = cam_view_.inverted();
+                rot << R(0,0), R(0,1), R(0,2),
+                       R(1,0), R(1,1), R(2,2),
+                       R(2,0), R(2,1), R(2,2);
 
-//                translate.translate(rot * Eigen::Vector3d(0.01 * diffX, -0.01 * diffY, 0));
-//                b.setPosition( translate * b.tf_);
-//            }
-//        }
-//    }
+                translate.translate(rot * Eigen::Vector3d(0.01 * diffX, -0.01 * diffY, 0));
+                b.setPosition( translate * b.tf_);
+            }
+        }
+    }
 
     // Propagate mouse position history
     lastMousePos_ = currMousePos_;
@@ -258,24 +274,25 @@ void DiceVisualizer::mousePressEvent(QMouseEvent* event)
         Eigen::Vector3d intersection;
         int idx = -1;
         double dist = HUGE_VAL;
-//        for (unsigned int i = 0; i < bodies_.size(); ++i) {
-//            auto start = Eigen::Vector4d(origin[0], origin[1], origin[2], 1.0);
-//            auto dir = Eigen::Vector4d(direction[0], direction[1], direction[2], 0.0);
+        for (unsigned int i = 0; i < bodies_.size(); ++i) {
+            auto start = Eigen::Vector4d(origin[0], origin[1], origin[2], 1.0);
+            auto dir = Eigen::Vector4d(direction[0], direction[1], direction[2], 0.0);
 
-//            if (Mesh::options.at(bodies_[i].mesh_idx_).rayIntersectsMesh(
-//                        (bodies_[i].tf_.inverse() * start).head(3),
-//                        (bodies_[i].tf_.inverse() * dir).head(3),
-//                        intersection)) {
-//                intersection = (bodies_[i].tf_ * Eigen::Vector4d(intersection[0], intersection[1], intersection[2], 1.0)).head(3);
-//                if (intersection.dot(dir.head(3)) < dist) {
-//                    dist = intersection.dot(dir.head(3));
-//                    idx = i;
-//                }
-//            }
-//        }
-//        if (idx >= 0) {
-//            bodies_[idx].selected_ = !bodies_[idx].selected_;
-//        }
+            if (bodies_[i].shape_->rayIntersection(
+                        (bodies_[i].tf_.inverse() * start).head(3),
+                        (bodies_[i].tf_.inverse() * dir).head(3),
+                        intersection)) {
+                intersection = (bodies_[i].tf_ * Eigen::Vector4d(intersection[0],
+                                intersection[1], intersection[2], 1.0)).head(3);
+                if (intersection.dot(dir.head(3)) < dist) {
+                    dist = intersection.dot(dir.head(3));
+                    idx = i;
+                }
+            }
+        }
+        if (idx >= 0) {
+            bodies_[idx].selected_ = !bodies_[idx].selected_;
+        }
     }
 }
 
@@ -295,12 +312,12 @@ void DiceVisualizer::wheelEvent(QWheelEvent *event)
 
 void DiceVisualizer::keyPressEvent(QKeyEvent *event)
 {
-//    if (event->key() == Qt::Key_Delete) {
-//        for (int i = bodies_.size() - 1; i >= 0; --i) {
-//            if (bodies_[i].selected_)
-//                bodies_.erase(bodies_.begin() + i);
-//        }
-//    }
+    if (event->key() == Qt::Key_Delete) {
+        for (int i = bodies_.size() - 1; i >= 0; --i) {
+            if (bodies_[i].selected_)
+                bodies_.erase(bodies_.begin() + i);
+        }
+    }
     if (event->key() == Qt::Key_Space) {
         paused_ = !paused_;
     }

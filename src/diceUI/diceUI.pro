@@ -2,7 +2,7 @@ QT       += core gui opengl
 
 greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
-CONFIG += c++14
+CONFIG += c++17
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -27,8 +27,7 @@ SOURCES += \
     #../shaders/fragment.glsl \
     #../shaders/vertex.glsl \
     #../shaders/fragment_color.glsl \
-    #../Mesh.cpp \
-   # ../SolidBody.cpp
+    ../SolidBody.cpp
 
 HEADERS += \
     ConvexPolytope.h \
@@ -38,8 +37,7 @@ HEADERS += \
     Plane.h \
     Shape.h \
     mainwindow.h \
-    #../Mesh.h \
-    #../SolidBody.h
+    ../SolidBody.h \
 
 LIBS += -lnlopt
 

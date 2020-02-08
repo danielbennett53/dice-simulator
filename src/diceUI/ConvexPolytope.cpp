@@ -1,4 +1,5 @@
 #include "ConvexPolytope.h"
+#include "Geometry.h"
 #include <cassert>
 #include <algorithm>
 #include <QOpenGLContext>
@@ -31,14 +32,14 @@ ConvexPolytope::ConvexPolytope(const ObjReader& obj)
 
         faces_.push_back(f_out);
     }
-
+    render_data_ = std::make_unique<OGLRenderData>(obj);
     updateCentroid();
 }
 
 ConvexPolytope::ConvexPolytope(const std::vector<Eigen::Vector3d>& points)
 {
     // Only 3-simplexes can initialize a polytope
-    assert(("Can only initialize ConvexPolytope with 2 or 3-simplexes",
+    assert(("Can only initialize ConvexPolytope with 3-simplexes",
             (points.size() == 4)));
 
     // Create vertices
@@ -94,36 +95,7 @@ void ConvexPolytope::addVertex(const Eigen::Vector3d& point)
                             Edge(new_vtx, e.startPoint_));
     }
 
-    centroid_valid_ = false;
-    render_data_.release();
-}
-
-
-void ConvexPolytope::addVertexSimplex(const Eigen::Vector3d& point, unsigned int face_to_keep)
-{
-    assert(("addVertexSimiplex is only valid on simplexes (4 points)", faces_.size() == 4));
-
-    // Remove all other faces from shape
-    for (unsigned int i = 0; i < faces_.size(); ++i) {
-        if (i != face_to_keep)
-            remove_at(faces_, i--);
-    }
-
-    // Make sure that the remaining face is in the right direction
-    Eigen::Vector3d v = point - faces_[0].edges_[0].startPoint_->getPos();
-    if (faces_[0].normal_.dot(v) > 0)
-        faces_[0].reverse();
-
-    // Add three remaining faces. Reverse the edges on the first face so the normal is facing out
-    const auto new_vtx = std::make_shared<Vertex>(point);
-    vertices_.push_back(new_vtx);
-    for (const auto& e : faces_[0].edges_) {
-        faces_.emplace_back(-e,
-                            Edge(e.startPoint_, new_vtx),
-                            Edge(new_vtx, e.endPoint_));
-    }
-
-    centroid_valid_ = false;
+    updateCentroid();
     render_data_.release();
 }
 
@@ -152,8 +124,6 @@ void ConvexPolytope::updateCentroid()
         if (r > radius_)
             radius_ = r;
     }
-
-    centroid_valid_ = true;
 }
 
 
@@ -187,7 +157,7 @@ void ConvexPolytope::draw()
 } // draw()
 
 
-bool ConvexPolytope::support(Eigen::Vector3d &vector, Eigen::Vector3d& out_point) const
+Eigen::Vector3d ConvexPolytope::support(const Eigen::Vector3d &vector) const
 {
     unsigned int i = 0;
     auto curr_vtx = static_cast<std::shared_ptr<Vertex>>(vertices_[0]);
@@ -206,12 +176,152 @@ bool ConvexPolytope::support(Eigen::Vector3d &vector, Eigen::Vector3d& out_point
         }
         // Return if no adjacent vertices have higher dot product
         if (!changed) {
-            out_point = curr_vtx->getPos();
-            return true;
+            return curr_vtx->getPos();
         }
+    }
+    return curr_vtx->getPos();
+}
+
+
+void Simplex::addVertex(const Eigen::Vector3d& point, unsigned int face_to_keep)
+{
+    // Behavior changes based on number of vertices
+    switch (getVertices().size()) {
+    case 0:
+    case 1:
+        vertices_.push_back(std::make_shared<Vertex>(point));
+        break;
+    case 2:
+    {
+        vertices_.push_back(std::make_shared<Vertex>(point));
+        auto vtxs = getVertices();
+        faces_.emplace_back(Edge(vtxs[0], vtxs[1]),
+                            Edge(vtxs[1], vtxs[2]),
+                            Edge(vtxs[2], vtxs[0]));
+        break;
+    }
+
+    // Case 4 is the same as case 3 once extra faces are removed
+    case 4:
+    {
+        // Remove all other faces from shape
+        for (unsigned int i = 0; i < faces_.size(); ++i) {
+            if (i != face_to_keep)
+                remove_at(faces_, i--);
+        }
+    }
+    case 3:
+    {
+        vertices_.push_back(std::make_shared<Vertex>(point));
+        auto vtxs = getVertices();
+        if (faces_[0].normal_.dot(point - vtxs[0]->getPos()) > 0)
+            faces_[0].reverse();
+        for (const auto& e : faces_[0].edges_) {
+            faces_.emplace_back(-e,
+                                Edge(e.startPoint_, vtxs.back()),
+                                Edge(vtxs.back(), e.endPoint_));
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
+
+    return;
+}
+
+
+bool Simplex::nearestSimplex(Eigen::Vector3d& new_dir, unsigned int& nearest_face)
+{
+    // Different checks depending on size of simplex
+    auto vtxs = getVertices();
+    nearest_face = 0;
+    switch (vtxs.size()) {
+    case 1:
+        new_dir = -vtxs[0]->getPos();
+        break;
+
+    case 2:
+    {
+        Eigen::Vector3d edge = vtxs[1]->getPos() - vtxs[0]->getPos();
+        new_dir = edge.cross(-vtxs[0]->getPos().cross(edge));
+        break;
+    }
+    case 3:
+    {
+        Eigen::Vector3d norm = faces_[0].edges_[1].diff_.cross(faces_[0].normal_);
+        Eigen::Vector3d diff = -vtxs[2]->getPos();
+        if (norm.dot(diff) > 0)
+            new_dir = norm;
+        else {
+            norm = faces_[0].edges_[2].diff_.cross(faces_[0].normal_);
+            if (norm.dot(diff) > 0)
+                new_dir = norm;
+            else if (faces_[0].normal_.dot(diff) > 0)
+                new_dir = faces_[0].normal_;
+            else
+                new_dir = -faces_[0].normal_;
+        }
+        break;
+    }
+    case 4:
+    {
+        Eigen::Vector3d diff = -vtxs.back()->getPos();
+        // Iterate through faces, then average the normals of every face the point is outside of
+        std::vector<unsigned int> face_idxs;
+        for (unsigned int i = 1; i < faces_.size(); ++i) {
+            if (faces_[i].normal_.dot(diff) > 0)
+                face_idxs.push_back(i);
+        }
+        if (face_idxs.size() >= 3)
+            std::cout << "nearestSimplex entered impossible state" << std::endl;
+        else if (face_idxs.size() == 0)
+            return true;
+        else {
+            new_dir.setZero();
+            for (const auto& i : face_idxs)
+                new_dir += faces_[i].normal_;
+            new_dir /= face_idxs.size();
+        }
+        nearest_face = face_idxs[0];
+        break;
+    }
+    default:
+        std::cout << "Simplex is invalid size" << std::endl;
+        break;
     }
     return false;
 }
 
+
+bool ConvexPolytope::rayIntersection(const Eigen::Vector3d& origin,
+                                     const Eigen::Vector3d& dir,
+                                     Eigen::Vector3d& intersectionPoint)
+{
+
+    // See if ray gets close enough to possibly intersect
+    // Point of closest approach
+    double t = (centroid_.dot(dir) - origin.dot(dir)) / dir.dot(dir);
+    Eigen::Vector3d p = origin + t*dir;
+    if ( (p - centroid_).norm() > radius_)
+        return false;
+
+    // Iterate through every face to find closest intersection
+    t = -1;
+    for (const auto &f : faces_) {
+        auto new_t = rayIntersectsTriangle(origin, dir, {f.edges_[0].startPoint_->getPos(),
+                              f.edges_[1].startPoint_->getPos(), f.edges_[2].startPoint_->getPos()});
+        if ((new_t > 0) && ((t < 0) || (new_t < t))) {
+            t = new_t;
+        }
+    }
+
+    if (t < 0)
+        return false;
+
+    intersectionPoint = origin + t * dir;
+    return true;
+}
 
 } // namespace geometry

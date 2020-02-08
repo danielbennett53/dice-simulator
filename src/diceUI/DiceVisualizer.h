@@ -6,9 +6,9 @@
 #include <QOpenGLShaderProgram>
 #include <QMatrix4x4>
 #include <QOpenGLBuffer>
-//#include "../Mesh.h"
-//#include "../SolidBody.h"
+#include "../SolidBody.h"
 #include "ConvexPolytope.h"
+#include "Shape.h"
 #include "ObjReader.h"
 #include <vector>
 #include <memory>
@@ -54,7 +54,7 @@ protected:
     int w_, h_;
     bool paused_ = true;
 
-//    std::vector<SolidBody> bodies_;
-    std::unique_ptr<geometry::ConvexPolytope> shape;
+    std::vector<SolidBody> bodies_;
+    std::unique_ptr<geometry::Shape> shape;
     QBasicTimer timer_;
 };
