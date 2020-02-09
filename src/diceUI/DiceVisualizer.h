@@ -32,7 +32,6 @@ protected:
     void timerEvent(QTimerEvent *e) override;
     void initShaders();
     void printMatrix(const QMatrix4x4 &mat, const std::string &name);
-    QMatrix4x4 eigenTFToQMatrix4x4(Eigen::Transform<double, 3, Eigen::Affine> &in);
     QVector4D eigenToQVector4d(Eigen::Vector3d &in);
 
 

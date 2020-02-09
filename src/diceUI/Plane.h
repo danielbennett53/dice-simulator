@@ -14,7 +14,7 @@ public:
           const Eigen::Vector3d x_axis, double width, double height,
           const std::string tex_file = "");
 
-    void draw() override { render_data_->draw(); };
+    void draw(QOpenGLShaderProgram& shader) override { render_data_->draw(shader); };
 
     bool isectPossible(const Eigen::Vector3d& point, double radius) const override {
         return ((point - getCentroid()).dot(normal_) < (radius));

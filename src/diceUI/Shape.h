@@ -10,6 +10,7 @@
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
+#include <QOpenGLShaderProgram>
 
 namespace geometry {
 
@@ -26,7 +27,7 @@ class Vertex {
 public:
     Vertex(Eigen::Vector3d point) : pos_(point) {};
     ~Vertex() {
-        for (auto c : connections_)
+        for (auto c : getConnections())
             static_cast<std::shared_ptr<Vertex>>(c)->setUpdate(true);
     }
 
@@ -41,6 +42,14 @@ public:
             return (v.expired() || (static_cast<std::shared_ptr<Vertex>>(v) == vtx));});
         connections_.emplace_back(vtx);
         update_connections_ = false;
+    }
+
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, int change_idx)
+    {
+        if (change_idx != change_idx_) {
+            pos_ = tf * pos_;
+            change_idx_ = change_idx;
+        }
     }
 
     Eigen::Vector3d operator-(const Vertex& v) const { return (pos_ - v.getPos()); }
@@ -63,6 +72,8 @@ public:
         return connections_;
     }
 
+    // Index to indicate whether vertex has been changed during transform operations
+    int change_idx_{0};
 private:
     Eigen::Vector3d pos_;
     // Pointers to every other connected vertex
@@ -95,6 +106,13 @@ public:
         diff_ = -diff_;
     }
 
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, int change_idx)
+    {
+        startPoint_->transform(tf, change_idx);
+        endPoint_->transform(tf, change_idx);
+        diff_ = *endPoint_ - *startPoint_;
+    }
+
     bool operator==(const Edge& e) const {
         return (*startPoint_ == *e.startPoint_) &&
                (*endPoint_ == *e.endPoint_);
@@ -119,6 +137,13 @@ public:
 
     std::vector<Edge> edges_;
     Eigen::Vector3d normal_;
+
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, int change_idx)
+    {
+        normal_ = (tf.linear().inverse().transpose() * normal_).normalized();
+        for (auto& e : edges_)
+            e.transform(tf, change_idx);
+    }
 }; // Face
 
 
@@ -147,7 +172,9 @@ public:
     std::vector<drawVertex> drawVertices_;
     std::vector<int> drawIndices_;
 
-    void draw();
+    void draw(QOpenGLShaderProgram& shader);
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf) { tf_ = tf * tf_; }
+    Eigen::Transform<double, 3, Eigen::Affine> tf_{Eigen::Transform<double, 3, Eigen::Affine>::Identity()};
 
 private:
     void setRenderData(const std::string tex_file);
@@ -155,6 +182,13 @@ private:
     QOpenGLVertexArrayObject VAO_;
     QOpenGLBuffer VBO_{QOpenGLBuffer::VertexBuffer}, EBO_{QOpenGLBuffer::IndexBuffer};
     std::shared_ptr<QOpenGLTexture> tex_;
+
+
+    static QMatrix4x4 eigenTFToQMatrix4x4(Eigen::Transform<double, 3, Eigen::Affine> &in)
+    {
+        Eigen::Matrix<float, 4, 4, Eigen::RowMajor> copy = in.matrix().cast<float>();
+        return QMatrix4x4(copy.data());
+    }
 }; // OGLRenderData
 
 
@@ -163,7 +197,7 @@ public:
     Shape() {}
     ~Shape() {}
 
-    virtual void draw() {};
+    virtual void draw(QOpenGLShaderProgram& shader) { render_data_->draw(shader); }
 
     // Outputs true if the sphere given by point and radius intersects the simplified
     // geometry of this shape
@@ -188,6 +222,19 @@ public:
         return radius_;
     }
 
+    virtual void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf)
+    {
+        centroid_ = tf.translation() + centroid_;
+        render_data_->transform(tf);
+    }
+
+    virtual void setTransform(const Eigen::Transform<double, 3, Eigen::Affine>& tf)
+    {
+        auto new_tf = tf * render_data_->tf_.inverse();
+        centroid_ = centroid_ - render_data_->tf_.translation() + tf.translation();
+        render_data_->tf_ = new_tf;
+    }
+
 protected:
     Eigen::Vector3d centroid_ = Eigen::Vector3d::Zero();
     double radius_ = 0.0;
@@ -197,9 +244,5 @@ protected:
     std::unique_ptr<OGLRenderData> render_data_;
 }; // Shape
 
-//Shape operator*(const Eigen::Transform<double, 3, Eigen::Affine> tf, const Shape& s)
-//{
-
-//}
 
 } // namespace geometry

@@ -127,10 +127,10 @@ void ConvexPolytope::updateCentroid()
 }
 
 
-void ConvexPolytope::draw()
+void ConvexPolytope::draw(QOpenGLShaderProgram& shader)
 {
     if (render_data_) {
-        render_data_->draw();
+        render_data_->draw(shader);
         return;
     }
 
@@ -322,6 +322,22 @@ bool ConvexPolytope::rayIntersection(const Eigen::Vector3d& origin,
 
     intersectionPoint = origin + t * dir;
     return true;
+}
+
+void ConvexPolytope::transform(const Eigen::Transform<double, 3, Eigen::Affine> &tf)
+{
+    auto change_idx = faces_[0].edges_[0].startPoint_->change_idx_ + 1;
+    for (auto& f : faces_) {
+        f.transform(tf, change_idx);
+    }
+    centroid_ = tf.translation() + centroid_;
+    render_data_->transform(tf);
+}
+
+void ConvexPolytope::setTransform(const Eigen::Transform<double, 3, Eigen::Affine> &tf)
+{
+    auto new_tf = tf * render_data_->tf_.inverse();
+    transform(new_tf);
 }
 
 } // namespace geometry

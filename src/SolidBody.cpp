@@ -49,16 +49,15 @@ double friction_constraint(unsigned int n, const double *x, double *grad, void *
 
 SolidBody::SolidBody(std::shared_ptr<geometry::ConvexPolytope> shape, double density)
 {
-    shape_ = shape;
+    shape_ = std::move(shape);
     vel_ = Eigen::Matrix<double, 6, 1>::Zero();
     calculatePhysicalProperties(density);
 }
 
 void SolidBody::setPosition(Eigen::Transform<double, 3, Eigen::Affine> tf)
 {
-    tf_ = tf;
-    COM_ = tf.translation();
-    orientation_ = tf.rotation();
+    shape_->setTransform(tf);
+//    orientation_ = tf.rotation();
 }
 
 
@@ -68,14 +67,19 @@ void SolidBody::updatePosition()
     Eigen::Quaterniond ang_vel;
     ang_vel.vec() = vel_.head(3) * Ts_/2;
     ang_vel.w() = 1.0f;
-    orientation_ = ang_vel*orientation_;
-    orientation_.normalize();
+//    orientation_ = ang_vel*orientation_;
+//    orientation_.normalize();
 
-    // Translate center of mass
-    COM_ += vel_.tail(3) * Ts_;
-    tf_ = Eigen::Transform<double, 3, Eigen::Affine>::Identity();    
-    tf_.translate(COM_ + COM_offset_);
-    tf_.rotate(orientation_);
+//    // Translate center of mass
+//    COM_ += vel_.tail(3) * Ts_;
+//    tf_ = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+//    tf_.translate(COM_ + COM_offset_);
+//    tf_.rotate(orientation_);
+    auto tf_temp = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+    Eigen::Vector3d t = vel_.tail(3) * Ts_/2;
+    tf_temp.translate(t);
+    tf_temp.rotate(ang_vel);
+    shape_->transform(tf_temp);
 }
 
 void SolidBody::step()
@@ -87,25 +91,20 @@ void SolidBody::step()
     double B = 2*(1+e)*(1/tau);
     double K = (1+e)/(tau*tau);
     long nrows = 0;
-    auto temp_shape = &(*shape_);
-    for (const auto &vertex : dynamic_cast<geometry::ConvexPolytope*>(temp_shape)->getVertices()) {
-        Eigen::Quaterniond v_q;
-        v_q.vec() << vertex->getPos()[0], vertex->getPos()[1], vertex->getPos()[2];
-        v_q.w() = 0;
-        Eigen::Quaterniond tfVertex_q = orientation_ * v_q * orientation_.inverse();
-        Eigen::Vector3d tfVertex = tfVertex_q.vec();
-        Eigen::Vector3d vertex_global = tfVertex + COM_ + COM_offset_;
+    for (const auto &vertex : std::dynamic_pointer_cast<geometry::ConvexPolytope>(shape_)->getVertices()) {
+        auto vtx = vertex->getPos();
+        auto vtx_rel = vtx - shape_->getCentroid();
 
-        if (vertex_global(1) <= 0) {
+        if (vtx(1) <= 0) {
             nrows += 3;
             x_err.conservativeResize(nrows, Eigen::NoChange_t());
-            x_err.bottomRows(3) << 0, vertex_global(1), 0;
+            x_err.bottomRows(3) << 0, vtx(1), 0;
 
             Jc.conservativeResize(nrows, Eigen::NoChange_t());
             Eigen::Matrix3d r_cross;
-            r_cross << 0, -tfVertex(2), tfVertex(1),
-                    tfVertex(2), 0, -tfVertex(0),
-                    -tfVertex(1), tfVertex(0), 0;
+            r_cross << 0, -vtx_rel(2), vtx_rel(1),
+                    vtx_rel(2), 0, -vtx_rel(0),
+                    -vtx_rel(1), vtx_rel(0), 0;
             Jc.bottomLeftCorner(3, 3) = -r_cross;
             Jc.bottomRightCorner(3, 3) = Eigen::Matrix3d::Identity();
         }
@@ -217,7 +216,7 @@ void SolidBody::calculatePhysicalProperties(float density)
     auto centroid = Eigen::Vector3d(0.0, 0.0, 0.0);
     M_ = Eigen::Matrix<double, 6, 6>::Zero();
 
-    auto temp_shape = dynamic_cast<geometry::ConvexPolytope*>(&(*shape_));
+    auto temp_shape = std::dynamic_pointer_cast<geometry::ConvexPolytope>(shape_);
     // Pick first vertex as starting point to make sure it is within the mesh
     auto refPoint = temp_shape->getVertices()[0]->getPos();
 

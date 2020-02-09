@@ -66,15 +66,15 @@ void DiceVisualizer::initializeGL()
     t1 = t1 * rot1;
     t2.translate(Eigen::Vector3d(-0.0, 4.0, 0.0));
     t3.translate(Eigen::Vector3d(3.0, 4.0, 0.0));
-    auto d4 = std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj"));
-    auto d6 = std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj"));
-    auto d20 = std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj"));
-    bodies_.emplace_back(d4);
-    bodies_.emplace_back(d6);
-    bodies_.emplace_back(d20);
-    bodies_[0].setPosition(t1);
-    bodies_[1].setPosition(t2);
-    bodies_[2].setPosition(t3);
+    auto d4 = std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj"));
+    auto d6 = std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj"));
+    auto d20 = std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj"));
+    bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj")));
+    bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj")));
+    bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj")));
+    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[0].shape_)->setTransform(t1);
+    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[1].shape_)->setTransform(t2);
+    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[2].shape_)->setTransform(t3);
     bodies_[1].vel_ << 1.0, 2.0, 4.0, 0.5, 0.3, 0.1;
     // Use QBasicTimer because its faster than QTimer
     timer_.start(12, this);
@@ -150,15 +150,14 @@ void DiceVisualizer::paintGL()
     tf.setToIdentity();
     shader_.setUniformValue(uniforms_.model_tf, tf);
     shader_.setUniformValue(uniforms_.color, QVector4D{1.0, 1.0, 1.0, 1.0});
-    shape->draw();
+    shape->draw(shader_);
 
     for (auto& b : bodies_) {
-        shader_.setUniformValue(uniforms_.model_tf, eigenTFToQMatrix4x4(b.tf_));
         if (b.selected_)
             shader_.setUniformValue(uniforms_.color, QVector4D{0.0, 0.7, 0.3, 1.0});
         else
             shader_.setUniformValue(uniforms_.color, QVector4D{1.0, 1.0, 1.0, 1.0});
-        b.shape_->draw();
+        b.shape_->draw(shader_);
     }
     shader_.release();
 }
@@ -238,7 +237,7 @@ void DiceVisualizer::updateCameraView()
                        R(2,0), R(2,1), R(2,2);
 
                 translate.translate(rot * Eigen::Vector3d(0.01 * diffX, -0.01 * diffY, 0));
-                b.setPosition( translate * b.tf_);
+                b.shape_->transform(translate);
             }
         }
     }
@@ -279,10 +278,10 @@ void DiceVisualizer::mousePressEvent(QMouseEvent* event)
             auto dir = Eigen::Vector4d(direction[0], direction[1], direction[2], 0.0);
 
             if (bodies_[i].shape_->rayIntersection(
-                        (bodies_[i].tf_.inverse() * start).head(3),
-                        (bodies_[i].tf_.inverse() * dir).head(3),
+                        start.head(3),
+                        dir.head(3),
                         intersection)) {
-                intersection = (bodies_[i].tf_ * Eigen::Vector4d(intersection[0],
+                intersection = (Eigen::Vector4d(intersection[0],
                                 intersection[1], intersection[2], 1.0)).head(3);
                 if (intersection.dot(dir.head(3)) < dist) {
                     dist = intersection.dot(dir.head(3));
@@ -321,12 +320,6 @@ void DiceVisualizer::keyPressEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Space) {
         paused_ = !paused_;
     }
-}
-
-QMatrix4x4 DiceVisualizer::eigenTFToQMatrix4x4(Eigen::Transform<double, 3, Eigen::Affine> &in)
-{
-    Eigen::Matrix<float, 4, 4, Eigen::RowMajor> copy = in.matrix().cast<float>();
-    return QMatrix4x4(copy.data());
 }
 
 QVector4D DiceVisualizer::eigenToQVector4d(Eigen::Vector3d &in)

@@ -24,7 +24,7 @@ public:
     void addVertexSimplex(const Eigen::Vector3d& point, unsigned int face_to_keep);
 
     // Draws polytope
-    void draw() override;
+    void draw(QOpenGLShaderProgram& shader) override;
 
     bool isectPossible(const Eigen::Vector3d& point, double radius) const override {
         return ((point - getCentroid()).norm() < (radius + getRadius()));
@@ -33,6 +33,10 @@ public:
     bool rayIntersection(const Eigen::Vector3d& origin,
                          const Eigen::Vector3d& dir,
                          Eigen::Vector3d& intersectionPoint) override;
+
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine> &tf) override;
+
+    void setTransform(const Eigen::Transform<double, 3, Eigen::Affine> &tf) override;
 
     // Support function for GJK/EP algorithm
     Eigen::Vector3d support(const Eigen::Vector3d& vector) const override;
