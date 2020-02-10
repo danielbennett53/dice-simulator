@@ -102,24 +102,14 @@ void ConvexPolytope::addVertex(const Eigen::Vector3d& point)
 
 void ConvexPolytope::updateCentroid()
 {
-    // Find all unique points on all faces
-    std::vector<std::shared_ptr<Vertex>> vertices;
-    for (const auto& f : faces_) {
-        for (unsigned int i = 0; i < 3; ++i) {
-            const auto loc = std::find(vertices.begin(), vertices.end(), f.edges_[i].startPoint_);
-            if (loc == vertices.end())
-                vertices.push_back(f.edges_[i].startPoint_);
-        }
-    }
-
     // Calculate the centroid and radius
     centroid_ = Eigen::Vector3d::Zero();
     radius_ = 0.0;
-    for (const auto& v : vertices)
+    for (const auto& v : getVertices())
         centroid_ += v->getPos();
-    centroid_ /= vertices.size();
+    centroid_ /= getVertices().size();
 
-    for (const auto& v : vertices) {
+    for (const auto& v : getVertices()) {
         double r = (v->getPos() - centroid_).norm();
         if (r > radius_)
             radius_ = r;
@@ -129,10 +119,10 @@ void ConvexPolytope::updateCentroid()
 
 void ConvexPolytope::draw(QOpenGLShaderProgram& shader)
 {
-    if (render_data_) {
-        render_data_->draw(shader);
-        return;
-    }
+//    if (render_data_) {
+//        render_data_->draw(shader);
+//        return;
+//    }
 
     // Get vector of vertices
     std::vector<Eigen::Vector3d> vertices;
@@ -328,7 +318,7 @@ void ConvexPolytope::transform(const Eigen::Transform<double, 3, Eigen::Affine> 
 {
     auto change_idx = faces_[0].edges_[0].startPoint_->change_idx_ + 1;
     for (auto& f : faces_) {
-        f.transform(tf, change_idx);
+        f.transform(tf, centroid_, change_idx);
     }
     centroid_ = tf.translation() + centroid_;
     render_data_->transform(tf);

@@ -72,9 +72,9 @@ void DiceVisualizer::initializeGL()
     bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj")));
     bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj")));
     bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj")));
-    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[0].shape_)->setTransform(t1);
-    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[1].shape_)->setTransform(t2);
-    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[2].shape_)->setTransform(t3);
+    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[0].shape_)->transform(t1);
+    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[1].shape_)->transform(t2);
+    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[2].shape_)->transform(t3);
     bodies_[1].vel_ << 1.0, 2.0, 4.0, 0.5, 0.3, 0.1;
     // Use QBasicTimer because its faster than QTimer
     timer_.start(12, this);

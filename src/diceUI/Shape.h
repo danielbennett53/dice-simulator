@@ -44,10 +44,12 @@ public:
         update_connections_ = false;
     }
 
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, int change_idx)
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
     {
         if (change_idx != change_idx_) {
-            pos_ = tf * pos_;
+            Eigen::Vector3d pos_temp = pos_ - centroid;
+            pos_temp = tf * pos_temp;
+            pos_ = pos_temp + centroid;
             change_idx_ = change_idx;
         }
     }
@@ -106,10 +108,10 @@ public:
         diff_ = -diff_;
     }
 
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, int change_idx)
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
     {
-        startPoint_->transform(tf, change_idx);
-        endPoint_->transform(tf, change_idx);
+        startPoint_->transform(tf, centroid, change_idx);
+        endPoint_->transform(tf, centroid, change_idx);
         diff_ = *endPoint_ - *startPoint_;
     }
 
@@ -138,11 +140,11 @@ public:
     std::vector<Edge> edges_;
     Eigen::Vector3d normal_;
 
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, int change_idx)
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
     {
         normal_ = (tf.linear().inverse().transpose() * normal_).normalized();
         for (auto& e : edges_)
-            e.transform(tf, change_idx);
+            e.transform(tf, centroid, change_idx);
     }
 }; // Face
 

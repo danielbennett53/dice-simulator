@@ -76,7 +76,7 @@ void SolidBody::updatePosition()
 //    tf_.translate(COM_ + COM_offset_);
 //    tf_.rotate(orientation_);
     auto tf_temp = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-    Eigen::Vector3d t = vel_.tail(3) * Ts_/2;
+    Eigen::Vector3d t = vel_.tail(3) * Ts_;
     tf_temp.translate(t);
     tf_temp.rotate(ang_vel);
     shape_->transform(tf_temp);
