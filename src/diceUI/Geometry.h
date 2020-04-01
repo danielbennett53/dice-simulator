@@ -3,6 +3,8 @@
 //#include "../Mesh.h"
 #include <string>
 #include <vector>
+#include <QTransform>
+#include <QMatrix>
 #include <Eigen/Geometry>
 #include "Shape.h"
 // Uncomment to build python module from code

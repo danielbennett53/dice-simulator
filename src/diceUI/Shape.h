@@ -2,6 +2,7 @@
 
 #include "ObjReader.h"
 
+#include <QMatrix>
 #include <Eigen/Geometry>
 #include <memory>
 #include <vector>
@@ -47,9 +48,10 @@ public:
     void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
     {
         if (change_idx != change_idx_) {
-            Eigen::Vector3d pos_temp = pos_ - centroid;
-            pos_temp = tf * pos_temp;
-            pos_ = pos_temp + centroid;
+//            Eigen::Vector3d pos_temp = pos_ - centroid;
+//            pos_temp = tf.rotation() * pos_temp;
+//            pos_ = pos_temp + centroid;
+            pos_ = tf * pos_;
             change_idx_ = change_idx;
         }
     }
@@ -142,7 +144,7 @@ public:
 
     void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
     {
-        normal_ = (tf.linear().inverse().transpose() * normal_).normalized();
+        normal_ = (tf.linear() * normal_).normalized();
         for (auto& e : edges_)
             e.transform(tf, centroid, change_idx);
     }
@@ -175,7 +177,11 @@ public:
     std::vector<int> drawIndices_;
 
     void draw(QOpenGLShaderProgram& shader);
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf) { tf_ = tf * tf_; }
+    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf) {
+        tf_ = tf*tf_;
+        //tf_.rotate(tf.rotation());
+        //tf_.pretranslate(tf.translation());
+    }
     Eigen::Transform<double, 3, Eigen::Affine> tf_{Eigen::Transform<double, 3, Eigen::Affine>::Identity()};
 
 private:

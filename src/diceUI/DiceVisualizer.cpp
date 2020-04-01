@@ -62,20 +62,18 @@ void DiceVisualizer::initializeGL()
     auto t2 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
     auto t3 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
     t1.translate(Eigen::Vector3d(-3.0, 4.0, 0.0));
-    Eigen::AngleAxisd rot1(1.5, Eigen::Vector3d(1, 0, 0));
+    Eigen::AngleAxisd rot1(0.75, Eigen::Vector3d(1, 0.5, 0));
     t1 = t1 * rot1;
-    t2.translate(Eigen::Vector3d(-0.0, 4.0, 0.0));
+    t2.translate(Eigen::Vector3d(0.0, 4.0, 0.0));
+    t2 = t2*rot1;
     t3.translate(Eigen::Vector3d(3.0, 4.0, 0.0));
-    auto d4 = std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj"));
-    auto d6 = std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj"));
-    auto d20 = std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj"));
     bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj")));
     bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj")));
     bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj")));
-    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[0].shape_)->transform(t1);
-    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[1].shape_)->transform(t2);
-    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[2].shape_)->transform(t3);
-    bodies_[1].vel_ << 1.0, 2.0, 4.0, 0.5, 0.3, 0.1;
+   bodies_[0].shape_->transform(t1);
+//    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[1].shape_)->transform(t2);
+//    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[2].shape_)->transform(t3);
+//    bodies_[1].vel_ << 1.0, 2.0, 4.0, 0.5, 0.3, 0.1;
     // Use QBasicTimer because its faster than QTimer
     timer_.start(12, this);
 }
@@ -157,6 +155,8 @@ void DiceVisualizer::paintGL()
             shader_.setUniformValue(uniforms_.color, QVector4D{0.0, 0.7, 0.3, 1.0});
         else
             shader_.setUniformValue(uniforms_.color, QVector4D{1.0, 1.0, 1.0, 1.0});
+        tf.setToIdentity();
+        shader_.setUniformValue(uniforms_.model_tf,tf);
         b.shape_->draw(shader_);
     }
     shader_.release();

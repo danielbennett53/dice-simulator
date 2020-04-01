@@ -119,10 +119,12 @@ void ConvexPolytope::updateCentroid()
 
 void ConvexPolytope::draw(QOpenGLShaderProgram& shader)
 {
-//    if (render_data_) {
-//        render_data_->draw(shader);
-//        return;
-//    }
+    static bool on = false;
+    on = !on;
+    if (render_data_ && on) {
+        render_data_->draw(shader);
+        return;
+    }
 
     // Get vector of vertices
     std::vector<Eigen::Vector3d> vertices;
@@ -320,14 +322,14 @@ void ConvexPolytope::transform(const Eigen::Transform<double, 3, Eigen::Affine> 
     for (auto& f : faces_) {
         f.transform(tf, centroid_, change_idx);
     }
-    centroid_ = tf.translation() + centroid_;
+    centroid_ = tf * centroid_;
     render_data_->transform(tf);
 }
 
-void ConvexPolytope::setTransform(const Eigen::Transform<double, 3, Eigen::Affine> &tf)
-{
-    auto new_tf = tf * render_data_->tf_.inverse();
-    transform(new_tf);
-}
+//void ConvexPolytope::setTransform(const Eigen::Transform<double, 3, Eigen::Affine> &tf)
+//{
+//    auto new_tf = tf * render_data_->tf_.inverse();
+//    transform(new_tf);
+//}
 
 } // namespace geometry

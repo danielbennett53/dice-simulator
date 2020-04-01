@@ -3,6 +3,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <QMatrix>
+#include <QTransform>
 #include <Eigen/Geometry>
 
 

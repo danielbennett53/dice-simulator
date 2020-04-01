@@ -56,7 +56,7 @@ SolidBody::SolidBody(std::shared_ptr<geometry::ConvexPolytope> shape, double den
 
 void SolidBody::setPosition(Eigen::Transform<double, 3, Eigen::Affine> tf)
 {
-    shape_->setTransform(tf);
+    //shape_->setTransform(tf);
 //    orientation_ = tf.rotation();
 }
 
@@ -76,9 +76,9 @@ void SolidBody::updatePosition()
 //    tf_.translate(COM_ + COM_offset_);
 //    tf_.rotate(orientation_);
     auto tf_temp = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-    Eigen::Vector3d t = vel_.tail(3) * Ts_;
-    tf_temp.translate(t);
+    Eigen::Vector3d t = vel_.tail(3) * Ts_;    
     tf_temp.rotate(ang_vel);
+    tf_temp.translate(t);
     shape_->transform(tf_temp);
 }
 

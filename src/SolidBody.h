@@ -2,7 +2,9 @@
 
 #include <vector>
 #include <memory>
-#include <eigen3/Eigen/Geometry>
+#include <QMatrix>
+#include <QTransform>
+#include <Eigen/Geometry>
 #include "ConvexPolytope.h"
 
 
@@ -17,7 +19,7 @@ public:
 
 //    Eigen::Transform<double, 3, Eigen::Affine> tf_;
     Eigen::Matrix<double, 6, 1> vel_;
-    std::shared_ptr<geometry::Shape> shape_;
+    std::shared_ptr<geometry::ConvexPolytope> shape_;
     bool selected_ = false;
 
 private:
