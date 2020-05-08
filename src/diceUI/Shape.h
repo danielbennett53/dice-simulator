@@ -16,6 +16,12 @@
 namespace geometry {
 
 
+inline QMatrix4x4 eigenTFToQMatrix4x4(Eigen::Isometry3d in)
+{
+    Eigen::Matrix<float, 4, 4, Eigen::RowMajor> copy = in.matrix().cast<float>();
+    return QMatrix4x4(copy.data());
+}
+
 template <typename T>
 inline void remove_at(std::vector<T>& v, typename std::vector<T>::size_type n)
 {
@@ -45,16 +51,16 @@ public:
         update_connections_ = false;
     }
 
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
+    void transform(const Eigen::Isometry3d& tf, const Eigen::Vector3d& centroid,
+                   const int change_idx)
     {
-        if (change_idx != change_idx_) {
-//            Eigen::Vector3d pos_temp = pos_ - centroid;
-//            pos_temp = tf.rotation() * pos_temp;
-//            pos_ = pos_temp + centroid;
-            pos_ = tf * pos_;
-            change_idx_ = change_idx;
+        if (change_idx != last_change_idx) {
+            last_change_idx = change_idx;
+            pos_ = tf.rotation() * (pos_ - centroid) + centroid + tf.translation();
         }
     }
+
+    int last_change_idx = 0;
 
     Eigen::Vector3d operator-(const Vertex& v) const { return (pos_ - v.getPos()); }
 
@@ -76,8 +82,6 @@ public:
         return connections_;
     }
 
-    // Index to indicate whether vertex has been changed during transform operations
-    int change_idx_{0};
 private:
     Eigen::Vector3d pos_;
     // Pointers to every other connected vertex
@@ -110,7 +114,8 @@ public:
         diff_ = -diff_;
     }
 
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
+    void transform(const Eigen::Isometry3d& tf, const Eigen::Vector3d& centroid,
+                   const int change_idx)
     {
         startPoint_->transform(tf, centroid, change_idx);
         endPoint_->transform(tf, centroid, change_idx);
@@ -139,15 +144,16 @@ public:
 
     Face operator-(void) const {return Face(edges_[2], edges_[1], edges_[0]); }
 
-    std::vector<Edge> edges_;
-    Eigen::Vector3d normal_;
-
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf, const Eigen::Vector3d& centroid, int change_idx)
+    void transform(const Eigen::Isometry3d& tf, const Eigen::Vector3d& centroid,
+                   const int change_idx)
     {
-        normal_ = (tf.linear() * normal_).normalized();
         for (auto& e : edges_)
             e.transform(tf, centroid, change_idx);
+        normal_ = (edges_[0]*edges_[1]).normalized();
     }
+
+    std::vector<Edge> edges_;
+    Eigen::Vector3d normal_;
 }; // Face
 
 
@@ -170,19 +176,13 @@ public:
         VAO_.destroy();
         VBO_.destroy();
         EBO_.destroy();
-//        tex_->destroy();
+        tex_->destroy();
     }
 
     std::vector<drawVertex> drawVertices_;
     std::vector<int> drawIndices_;
 
     void draw(QOpenGLShaderProgram& shader);
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf) {
-        tf_ = tf*tf_;
-        //tf_.rotate(tf.rotation());
-        //tf_.pretranslate(tf.translation());
-    }
-    Eigen::Transform<double, 3, Eigen::Affine> tf_{Eigen::Transform<double, 3, Eigen::Affine>::Identity()};
 
 private:
     void setRenderData(const std::string tex_file);
@@ -190,13 +190,6 @@ private:
     QOpenGLVertexArrayObject VAO_;
     QOpenGLBuffer VBO_{QOpenGLBuffer::VertexBuffer}, EBO_{QOpenGLBuffer::IndexBuffer};
     std::shared_ptr<QOpenGLTexture> tex_;
-
-
-    static QMatrix4x4 eigenTFToQMatrix4x4(Eigen::Transform<double, 3, Eigen::Affine> &in)
-    {
-        Eigen::Matrix<float, 4, 4, Eigen::RowMajor> copy = in.matrix().cast<float>();
-        return QMatrix4x4(copy.data());
-    }
 }; // OGLRenderData
 
 
@@ -205,7 +198,14 @@ public:
     Shape() {}
     ~Shape() {}
 
-    virtual void draw(QOpenGLShaderProgram& shader) { render_data_->draw(shader); }
+    virtual void draw(QOpenGLShaderProgram& shader)
+    {
+        if (render_data_) {
+            Eigen::Isometry3d tf = getTransform();
+            shader.setUniformValue(shader.uniformLocation("model"), eigenTFToQMatrix4x4(tf));
+            render_data_->draw(shader);
+        }
+    }
 
     // Outputs true if the sphere given by point and radius intersects the simplified
     // geometry of this shape
@@ -230,27 +230,36 @@ public:
         return radius_;
     }
 
-    virtual void transform(const Eigen::Transform<double, 3, Eigen::Affine>& tf)
+    virtual void transform(const Eigen::Isometry3d& tf)
     {
-        centroid_ = tf.translation() + centroid_;
-        render_data_->transform(tf);
+        rot_ = tf.rotation() * rot_;
+        centroid_ += tf.translation();
     }
 
-    virtual void setTransform(const Eigen::Transform<double, 3, Eigen::Affine>& tf)
+    void setTransform(const Eigen::Isometry3d& tf)
     {
-        auto new_tf = tf * render_data_->tf_.inverse();
-        centroid_ = centroid_ - render_data_->tf_.translation() + tf.translation();
-        render_data_->tf_ = new_tf;
+        auto new_tf = Eigen::Isometry3d::Identity();
+        new_tf.rotate(tf.rotation() * rot_.inverse());
+        new_tf.translate(-centroid_ + tf.translation());
+        transform(new_tf);
+    }
+
+    Eigen::Isometry3d getTransform()
+    {
+        auto tf = Eigen::Isometry3d::Identity();
+        tf.translate(centroid_);
+        tf.rotate(rot_);
+        return tf;
     }
 
 protected:
-    Eigen::Vector3d centroid_ = Eigen::Vector3d::Zero();
-    double radius_ = 0.0;
+    Eigen::Vector3d centroid_{Eigen::Vector3d::Zero()};
+    Eigen::Quaterniond rot_{Eigen::Quaterniond::Identity()};
+    double radius_{0.0};
 
     virtual void updateCentroid() {};
 
     std::unique_ptr<OGLRenderData> render_data_;
 }; // Shape
-
 
 } // namespace geometry

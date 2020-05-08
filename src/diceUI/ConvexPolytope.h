@@ -35,9 +35,7 @@ public:
                          const Eigen::Vector3d& dir,
                          Eigen::Vector3d& intersectionPoint) override;
 
-    void transform(const Eigen::Transform<double, 3, Eigen::Affine> &tf) override;
-
-    //void setTransform(const Eigen::Transform<double, 3, Eigen::Affine> &tf) override;
+    void transform(const Eigen::Isometry3d &tf) override;
 
     // Support function for GJK/EP algorithm
     Eigen::Vector3d support(const Eigen::Vector3d& vector) const override;

@@ -18,6 +18,14 @@ void DiceVisualizer::timerEvent(QTimerEvent *e)
     update();
 }
 
+// Release OGL memory before destroying context
+void DiceVisualizer::exit()
+{
+    for (auto& b : bodies_)
+        b.shape_.release();
+    shape.release();
+}
+
 void DiceVisualizer::printMatrix(const QMatrix4x4 &mat, const std::string &name)
 {
     std::cout << name << std::endl;
@@ -58,21 +66,23 @@ void DiceVisualizer::initializeGL()
     format.setSamples(0);
     QSurfaceFormat::setDefaultFormat(format);
 
-    auto t1 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-    auto t2 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-    auto t3 = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+    auto t1 = Eigen::Isometry3d::Identity();
+    auto t2 = Eigen::Isometry3d::Identity();
+    auto t3 = Eigen::Isometry3d::Identity();
     t1.translate(Eigen::Vector3d(-3.0, 4.0, 0.0));
     Eigen::AngleAxisd rot1(0.75, Eigen::Vector3d(1, 0.5, 0));
     t1 = t1 * rot1;
     t2.translate(Eigen::Vector3d(0.0, 4.0, 0.0));
     t2 = t2*rot1;
     t3.translate(Eigen::Vector3d(3.0, 4.0, 0.0));
-    bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj")));
-    bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj")));
-    bodies_.emplace_back(std::make_shared<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj")));
-   bodies_[0].shape_->transform(t1);
-//    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[1].shape_)->transform(t2);
-//    std::dynamic_pointer_cast<geometry::ConvexPolytope>(bodies_[2].shape_)->transform(t3);
+    t3.rotate(rot1);
+
+    bodies_.emplace_back(std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d4.obj")));
+    bodies_.emplace_back(std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d6.obj")));
+    bodies_.emplace_back(std::make_unique<geometry::ConvexPolytope>(ObjReader("../../resources/d20.obj")));
+    bodies_[0].shape_->transform(t1);
+    bodies_[1].shape_->transform(t2);
+    bodies_[2].shape_->transform(t3);
 //    bodies_[1].vel_ << 1.0, 2.0, 4.0, 0.5, 0.3, 0.1;
     // Use QBasicTimer because its faster than QTimer
     timer_.start(12, this);
@@ -156,7 +166,7 @@ void DiceVisualizer::paintGL()
         else
             shader_.setUniformValue(uniforms_.color, QVector4D{1.0, 1.0, 1.0, 1.0});
         tf.setToIdentity();
-        shader_.setUniformValue(uniforms_.model_tf,tf);
+        shader_.setUniformValue(uniforms_.model_tf, tf);
         b.shape_->draw(shader_);
     }
     shader_.release();
@@ -229,7 +239,7 @@ void DiceVisualizer::updateCameraView()
     if (buttons_pressed_.testFlag(Qt::LeftButton)) {
         for (auto& b : bodies_) {
             if (b.selected_) {
-                auto translate = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+                auto translate = Eigen::Isometry3d::Identity();
                 Eigen::Matrix3d rot;
                 auto R = cam_view_.inverted();
                 rot << R(0,0), R(0,1), R(0,2),

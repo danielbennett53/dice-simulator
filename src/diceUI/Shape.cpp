@@ -81,7 +81,6 @@ void OGLRenderData::setRenderData(const std::string tex_file)
 
 void OGLRenderData::draw(QOpenGLShaderProgram& shader)
 {
-    shader.setUniformValue(shader.uniformLocation("model"), eigenTFToQMatrix4x4(tf_));
     QOpenGLFunctions* gl_fncs = QOpenGLContext::currentContext()->functions();
     VAO_.bind();
     VBO_.bind();

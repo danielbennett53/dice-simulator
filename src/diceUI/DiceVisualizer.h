@@ -13,11 +13,13 @@
 #include <vector>
 #include <memory>
 #include <QBasicTimer>
+#include <QCloseEvent>
 
 class DiceVisualizer : public QOpenGLWidget, protected QOpenGLFunctions
 {
 public:
     DiceVisualizer(QWidget *parent);
+    void exit();
 
 protected:
     void initializeGL() override;
@@ -33,7 +35,6 @@ protected:
     void initShaders();
     void printMatrix(const QMatrix4x4 &mat, const std::string &name);
     QVector4D eigenToQVector4d(Eigen::Vector3d &in);
-
 
     Qt::MouseButtons buttons_pressed_ = Qt::NoButton;
     std::vector<int> currMousePos_ = {0, 0, 2000};

@@ -119,10 +119,8 @@ void ConvexPolytope::updateCentroid()
 
 void ConvexPolytope::draw(QOpenGLShaderProgram& shader)
 {
-    static bool on = false;
-    on = !on;
-    if (render_data_ && on) {
-        render_data_->draw(shader);
+    if (render_data_) {
+        Shape::draw(shader);
         return;
     }
 
@@ -190,8 +188,7 @@ void Simplex::addVertex(const Eigen::Vector3d& point, unsigned int face_to_keep)
         faces_.emplace_back(Edge(vtxs[0], vtxs[1]),
                             Edge(vtxs[1], vtxs[2]),
                             Edge(vtxs[2], vtxs[0]));
-        break;
-    }
+    } break;
 
     // Case 4 is the same as case 3 once extra faces are removed
     case 4:
@@ -201,7 +198,7 @@ void Simplex::addVertex(const Eigen::Vector3d& point, unsigned int face_to_keep)
             if (i != face_to_keep)
                 remove_at(faces_, i--);
         }
-    }
+    } break;
     case 3:
     {
         vertices_.push_back(std::make_shared<Vertex>(point));
@@ -213,8 +210,7 @@ void Simplex::addVertex(const Eigen::Vector3d& point, unsigned int face_to_keep)
                                 Edge(e.startPoint_, vtxs.back()),
                                 Edge(vtxs.back(), e.endPoint_));
         }
-        break;
-    }
+    } break;
 
     default:
         break;
@@ -316,20 +312,13 @@ bool ConvexPolytope::rayIntersection(const Eigen::Vector3d& origin,
     return true;
 }
 
-void ConvexPolytope::transform(const Eigen::Transform<double, 3, Eigen::Affine> &tf)
+void ConvexPolytope::transform(const Eigen::Isometry3d& tf)
 {
-    auto change_idx = faces_[0].edges_[0].startPoint_->change_idx_ + 1;
+    auto change_idx = faces_[0].edges_[0].startPoint_->last_change_idx + 1;
     for (auto& f : faces_) {
         f.transform(tf, centroid_, change_idx);
     }
-    centroid_ = tf * centroid_;
-    render_data_->transform(tf);
+    Shape::transform(tf);
 }
-
-//void ConvexPolytope::setTransform(const Eigen::Transform<double, 3, Eigen::Affine> &tf)
-//{
-//    auto new_tf = tf * render_data_->tf_.inverse();
-//    transform(new_tf);
-//}
 
 } // namespace geometry
